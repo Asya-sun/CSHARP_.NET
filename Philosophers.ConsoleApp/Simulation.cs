@@ -195,13 +195,13 @@ namespace Philosophers.Core
 
             var actions = new List<string>();
 
-            if (!philosopher.HasLeftFork && philosopher.CanTakeLeftFork())
+            if (!philosopher.HasLeftFork && philosopher.CanTakeLeftFork() || philosopher.TakingLeftFork)
                 actions.Add("TakeLeftFork");
-            if (!philosopher.HasRightFork && philosopher.CanTakeRightFork())
+            if (!philosopher.HasRightFork && philosopher.CanTakeRightFork() || philosopher.TakingRightFork)
                 actions.Add("TakeRightFork");
-            if (philosopher.HasLeftFork)
+            if (philosopher.HasLeftFork || philosopher.TakingLeftFork)
                 actions.Add("ReleaseLeftFork");
-            if (philosopher.HasRightFork)
+            if (philosopher.HasRightFork || philosopher.TakingRightFork)
                 actions.Add("ReleaseRightFork");
 
             return actions.Count > 0 ? $"(Action = {string.Join("|", actions)})" : "";
@@ -216,7 +216,8 @@ namespace Philosophers.Core
             _metrics.MaxHungerTime = _philosophers.Max(p => p.MaxHungryStreak);
             var maxHungerPhilosopher = _philosophers.FirstOrDefault(p => p.MaxHungryStreak == _metrics.MaxHungerTime);
             _metrics.MaxHungerPhilosopher = maxHungerPhilosopher?._name ?? "Unknown";
-            _metrics.AverageHungerTime = _philosophers.Average(p => p.TotalHungrySteps);
+            // ???
+            _metrics.AverageHungerTime = _philosophers.Sum(p => p._totalHungrySteps) / _metrics.TotalEatCount;
         }
 
         private void PrintMetrics()
@@ -243,12 +244,12 @@ namespace Philosophers.Core
             {
                 double throughput = (double)philosopher._eatCount / _metrics.TotalSteps * 1000;
                 double hungerPercentage = _metrics.TotalSteps > 0 ?
-                    (double)philosopher.TotalHungrySteps / _metrics.TotalSteps * 100 : 0;
+                    (double)philosopher._totalHungrySteps / _metrics.TotalSteps * 100 : 0;
 
                 Console.WriteLine($"{philosopher._name,-12}: " +
                     $"поел {philosopher._eatCount,3} раз, " +
                     $"{throughput,6:F2} еды/1000ш, " +
-                    $"голод {philosopher.TotalHungrySteps,4} шагов " +
+                    $"голод {philosopher._totalHungrySteps,4} шагов " +
                     $"({hungerPercentage,5:F1}%), " +
                     $"макс.голод {philosopher.MaxHungryStreak,3} шагов");
             }

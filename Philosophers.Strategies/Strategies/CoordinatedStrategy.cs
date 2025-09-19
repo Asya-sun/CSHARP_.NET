@@ -8,7 +8,6 @@ namespace Philosophers.Strategies.Strategies
     {
         private Philosopher _philosopher = null!;
         private ICoordinator _coordinator = null!;
-        private int _consecutiveFailures = 0;
 
         public string Name => "Cooperative";
 
@@ -24,14 +23,7 @@ namespace Philosophers.Strategies.Strategies
         {
             if (_philosopher._state != PhilosopherState.Hungry) return;
 
-            // Если много неудачных попыток - возможно, стоит помочь другим
-            if (_consecutiveFailures > 10 && ShouldReleaseToHelpOthers())
-            {
-                ReleaseToPreventStarvation();
-                _consecutiveFailures = 0;
-                return;
-            }
-
+         
             // Стандартная логика запроса
             if (!_philosopher.HasLeftFork || !_philosopher.HasRightFork)
             {
@@ -39,35 +31,7 @@ namespace Philosophers.Strategies.Strategies
             }
         }
 
-        private bool ShouldReleaseToHelpOthers()
-        {
-            // Проверяем, есть ли философы, которые голодают дольше нас
-            // и которым могут помочь наши вилки
-            return (_philosopher.HasLeftFork && WouldHelpOthers(_philosopher.LeftFork)) ||
-                   (_philosopher.HasRightFork && WouldHelpOthers(_philosopher.RightFork));
-        }
-
-        private bool WouldHelpOthers(Fork fork)
-        {
-            // Здесь должна быть логика проверки, поможет ли освобождение вилки другим
-            // В реальной реализации нужно получить эту информацию от координатора
-            return fork.State == ForkState.InUse &&
-                   _philosopher.GetHungerLevel() < 50; // Если мы не слишком голодны сами
-        }
-
-        private void ReleaseToPreventStarvation()
-        {
-            // Освобождаем одну вилку чтобы помочь другим
-            if (_philosopher.HasLeftFork && WouldHelpOthers(_philosopher.LeftFork))
-            {
-                _philosopher.ReleaseLeftFork();
-            }
-            else if (_philosopher.HasRightFork && WouldHelpOthers(_philosopher.RightFork))
-            {
-                _philosopher.ReleaseRightFork();
-            }
-        }
-
+        // вот я хз - это тут должно быть или нет? Вроде да, а вроде и хз
         private void OnForkActionAllowed(int philosopherId, ForkAction action)
         {
             if (philosopherId != _philosopher._id) return;
@@ -85,15 +49,10 @@ namespace Philosophers.Strategies.Strategies
 
             if (success)
             {
-                _consecutiveFailures = 0;
                 if (_philosopher.HasLeftFork && _philosopher.HasRightFork)
                 {
-                    _philosopher.StartEating();
+                    _philosopher.TryStartEating();
                 }
-            }
-            else
-            {
-                _consecutiveFailures++;
             }
         }
     }

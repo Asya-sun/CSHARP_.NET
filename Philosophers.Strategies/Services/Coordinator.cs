@@ -21,12 +21,16 @@ namespace Philosophers.Strategies.Services
 
         public void RequestToEat(int philosopherId)
         {
+            // ищем подходящего философа
             var philosopher = _philosophers.First(p => p._id == philosopherId);
+            // смотрим, насколько он голоден
             int hungerLevel = philosopher.GetHungerLevel();
 
+            // добавляем философа с нужным  id в список сс уровнем голода
             _hungerLevels[philosopherId] = hungerLevel;
 
-            // Добавляем в очередь с приоритетом (больший голод = высший приоритет)
+            // Добавляем в очередь с приоритетом (бОольший голод = высший приоритет)
+            // если философа нет в очереди, то добавляем его туда
             if (!_requestQueue.UnorderedItems.Any(x => x.Element == philosopherId))
             {
                 _requestQueue.Enqueue(philosopherId, hungerLevel);
@@ -41,7 +45,9 @@ namespace Philosophers.Strategies.Services
 
             while (_requestQueue.Count > 0)
             {
+                // извлекаем id философа с самым большим приоритетом
                 var philosopherId = _requestQueue.Dequeue();
+                // затем самого философа с этим id
                 var philosopher = _philosophers.First(p => p._id == philosopherId);
 
                 if (TryGrantForks(philosopher))
@@ -76,25 +82,25 @@ namespace Philosophers.Strategies.Services
             // Выдаем вилки по одной, начиная с той, что меньше блокирует других
             if (canTakeLeft && canTakeRight)
             {
-                // Берем сначала ту, что меньше нужна другим голодающим
+                // Берем ту, что меньше нужна другим голодающим
                 if (GetForkStarvationLevel(philosopher.LeftFork) > GetForkStarvationLevel(philosopher.RightFork))
                 {
                     OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeRight);
-                    OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeLeft);
+                    //OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeLeft);
                 }
                 else
                 {
                     OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeLeft);
-                    OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeRight);
+                    //OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeRight);
                 }
                 return true;
             }
-            else if (canTakeLeft && !philosopher.HasLeftFork)
+            else if (canTakeLeft && !philosopher.HasLeftFork && !philosopher.TakingLeftFork)
             {
                 OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeLeft);
                 return true;
             }
-            else if (canTakeRight && !philosopher.HasRightFork)
+            else if (canTakeRight && !philosopher.HasRightFork && !philosopher.TakingRightFork)
             {
                 OnForkActionAllowed?.Invoke(philosopher._id, ForkAction.TakeRight);
                 return true;
@@ -111,7 +117,9 @@ namespace Philosophers.Strategies.Services
             if (currentUser == null) return false;
 
             // Если текущий пользователь голодает дольше, чем запрашивающий - блокируем запрос
-            return currentUser.GetHungerLevel() > requester.GetHungerLevel() + 5; // Небольшой гистерезис
+            // Небольшой плюс-минус на всякий случай
+            // если текущий владелец вилки ест, то отобрать у него вилку нельзя никак
+            return currentUser.GetHungerLevel() > requester.GetHungerLevel() + 5 || currentUser.IsEatingNow(); 
         }
 
         private int GetForkStarvationLevel(Fork fork)

@@ -13,6 +13,8 @@ using System.Threading.Tasks;
  * Предоставление методов для работы с вилками
  * Контроль времени в состояниях
 */
+
+// мб замеминть TryTakeFork на Take...Fork с ассертом - все равно однопоточная программа
 namespace Philosophers.Core.Models
 {
     public class Philosopher
@@ -24,13 +26,24 @@ namespace Philosophers.Core.Models
         public int _stepsInCurrentState { get; set; }
 
 
+        // Для отслеживания процесса взятия вилок
+        public int _leftForkTakeSteps = 0;
+        public int _rightForkTakeSteps = 0;
+        public bool _takingLeftFork = false;
+        public bool _takingRightFork = false;
+
+        // Для предотвращения deadlock
+        private int _consecutiveFailures = 0;
+        private int _stepsWithOneFork = 0;
+
+
 
 
         // for statistics
         // Общее время в голоде
-        public int TotalHungrySteps { get; set; }
+        public int _totalHungrySteps { get; set; }
         // Текущая серия голода
-        public int CurrentHungryStreak { get; set; }
+        public int _сurrentHungryStreak { get; set; }
         // Максимальное время голода
         public int MaxHungryStreak { get; set; }
         // Шаг последней еды
@@ -39,7 +52,7 @@ namespace Philosophers.Core.Models
         // ???
         public IPhilosopherStrategy Strategy { get; set; } = null!;
         public Fork LeftFork { get; set; } = null!;
-         public Fork RightFork { get; set; } = null!;
+        public Fork RightFork { get; set; } = null!;
         private readonly Random _random = new();
         private int _currentThinkingTime;
         private int _currentEatingTime;
@@ -57,13 +70,9 @@ namespace Philosophers.Core.Models
             // for statistics
             if (_state == PhilosopherState.Hungry)
             {
-                TotalHungrySteps++;
-                CurrentHungryStreak++;
-                MaxHungryStreak = Math.Max(MaxHungryStreak, CurrentHungryStreak);
-            }
-            else
-            {
-                CurrentHungryStreak = 0;
+                _totalHungrySteps++;
+                _сurrentHungryStreak++;
+                MaxHungryStreak = Math.Max(MaxHungryStreak, _сurrentHungryStreak);
             }
 
             // Автоматические переходы
@@ -83,18 +92,46 @@ namespace Philosophers.Core.Models
                 ReleaseForks();
                 // for next eating
                 _currentEatingTime = _random.Next(4, 6);
+                _сurrentHungryStreak = 0;
+            } 
+            else if (_takingLeftFork && _state == PhilosopherState.Hungry)
+            {
+                _leftForkTakeSteps--;
+                // если сделали достаточно шагов, чтобы взять вилку
+                if (_leftForkTakeSteps <= 0)
+                {
+                    _takingLeftFork = false;
+                    TryStartEating();
+                }
+            } 
+            else if (_takingRightFork && _state == PhilosopherState.Hungry)
+            {
+                _rightForkTakeSteps--;
+                // если сделали достаточно шагов, чтобы взять вилку
+                if (_rightForkTakeSteps <= 0)
+                {                    
+                    _takingRightFork = false;
+                    TryStartEating();
+                    
+                }
             }
 
-            // Если голоден - вызываем стратегию
-            if (_state == PhilosopherState.Hungry)
+
+            // Если голоден и не берем никакие вилки
+            // там внутри стратегия должна учесть, что философ уже мог взять вилки!!!
+            // обращаемся к стратегии только если хотим есть и не берем сейчас вилку!!!
+            if (_state == PhilosopherState.Hungry && !_takingRightFork && !_takingLeftFork)
             {
                 Strategy.ExecuteStep(); // ← Стратегия пытается взять вилки
             }
         }
 
         // Методы для работы с вилками (стратегия использует их)
-        public bool HasLeftFork => LeftFork.State == ForkState.InUse && LeftFork.CurrentUserId == _id;
-        public bool HasRightFork => RightFork.State == ForkState.InUse && RightFork.CurrentUserId == _id;
+        public bool HasLeftFork => LeftFork.State == ForkState.InUse && LeftFork.CurrentUserId == _id && !_takingLeftFork;
+        public bool HasRightFork => RightFork.State == ForkState.InUse && RightFork.CurrentUserId == _id && !_takingRightFork;
+
+        public bool TakingLeftFork => LeftFork.State == ForkState.InUse && LeftFork.CurrentUserId == _id && _takingLeftFork;
+        public bool TakingRightFork => RightFork.State == ForkState.InUse && RightFork.CurrentUserId == _id && _takingRightFork;
 
         public bool CanTakeLeftFork() => LeftFork.State == ForkState.Available;
         public bool CanTakeRightFork() => RightFork.State == ForkState.Available;
@@ -105,6 +142,8 @@ namespace Philosophers.Core.Models
             {
                 LeftFork.State = ForkState.InUse;
                 LeftFork.CurrentUserId = _id;
+                _takingLeftFork = true;
+                _leftForkTakeSteps = 2;
                 return true;
             }
             return false;
@@ -116,6 +155,8 @@ namespace Philosophers.Core.Models
             {
                 RightFork.State = ForkState.InUse;
                 RightFork.CurrentUserId = _id;
+                _takingRightFork = true;
+                _rightForkTakeSteps = 2;
                 return true;
             }
             return false;
@@ -144,15 +185,19 @@ namespace Philosophers.Core.Models
             }
         }
 
-        public void StartEating()
+        public void TryStartEating()
         {
-            if (HasLeftFork && HasRightFork)
+            if (HasLeftFork && HasRightFork && _state == PhilosopherState.Hungry)
             {
                 _state = PhilosopherState.Eating;
                 _stepsInCurrentState = 0;
             }
         }
 
+        // если философ в процессе взятия вилки - он не обращается к стратегии
+        // тк если он уже начал брать вилку, то она помечена, и никто ее не возьмет
+
+        // ???
         public bool HasFork(Fork fork)
         {
             return HasLeftFork && LeftFork.Id == fork.Id ||
@@ -161,12 +206,17 @@ namespace Philosophers.Core.Models
 
         public bool IsStarving()
         {
-            return _state == PhilosopherState.Hungry && TotalHungrySteps > 50;
+            return _state == PhilosopherState.Hungry && _сurrentHungryStreak > 50;
         }
 
         public int GetHungerLevel()
         {
-            return TotalHungrySteps;
+            return _сurrentHungryStreak;
+        }
+
+        public bool IsEatingNow()
+        {
+            return _state == PhilosopherState.Eating;
         }
     }
 }

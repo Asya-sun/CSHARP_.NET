@@ -20,7 +20,7 @@ namespace Philosophers.ConsoleApp
             var simulation = new Simulation(strategyFactory);
             simulation.Initialize("Coordinated");
             //simulation.Initialize("Naive");
-            simulation.Run(10000, 1); // 1 млн шагов
+            simulation.Run(1000000, 1000); // 1 млн шагов
             simulation.PrintResults();
         }
     }
