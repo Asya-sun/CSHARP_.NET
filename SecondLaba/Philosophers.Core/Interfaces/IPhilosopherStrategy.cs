@@ -11,5 +11,7 @@ namespace Philosophers.Core.Interfaces
     {
         string _name { get; }
         void Initialize(Philosopher philosopher);
+
+        public bool TryAcquireForks();
     }
 }
