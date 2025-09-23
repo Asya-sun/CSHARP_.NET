@@ -17,10 +17,9 @@ class Program
 
 
         var simulation = new Simulation();
-        simulation.DurationMs = 10000; // 30 секунд
+        simulation.DurationMs = 30000;
 
-        Console.WriteLine("Запуск симуляции...");
         simulation.Initialize("Naive");
-        simulation.Start(displayStatsEveryMsec : 300);
+        simulation.Run(displayStatsEveryMsec : 200);
     }
 }

@@ -45,25 +45,25 @@ namespace Philosophers.Strategies
 
         public bool TryAcquireForks()
         {
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} пытается взять вилки");
+            //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} пытается взять вилки");
 
             if (_philosopher.LeftFork.TryTake(_philosopher))
             {
-                Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял левую вилку");
+                //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял левую вилку");
 
                 if (_philosopher.RightFork.TryTake(_philosopher))
                 {
-                    Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял правую вилку - УСПЕХ");
+                    //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял правую вилку - УСПЕХ");
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять правую вилку");
+                    //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять правую вилку");
                     _philosopher.LeftFork.Release(_philosopher);
                     return false;
                 }
             }
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять левую вилку");
+            //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять левую вилку");
             return false;
         }
 

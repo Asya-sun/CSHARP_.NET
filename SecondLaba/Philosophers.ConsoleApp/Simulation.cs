@@ -98,7 +98,7 @@ namespace Philosophers.ConsoleApp
         }
 
 
-        public void Start(int displayStatsEveryMsec = 200)
+        public void Run(int displayStatsEveryMsec = 200)
         {
             // тут вместо этого может быть исключение =)
             if (displayStatsEveryMsec <= 0)
@@ -121,8 +121,11 @@ namespace Philosophers.ConsoleApp
                 philosopher.Start();
             }
 
-            // Останавливаем симуляцию через заданное время
-            Task.Delay(DurationMs).ContinueWith(_ => Stop());
+            //// тут создается Task (типа таймера), который по завершению вызывает эту функцию
+            //Task.Delay(DurationMs).ContinueWith(_ => Stop());
+
+            Thread.Sleep(DurationMs);
+            Stop();
         }
 
 
@@ -176,9 +179,9 @@ namespace Philosophers.ConsoleApp
 
             // Пропускная способность
             int totalMeals = _philosophers.Sum(p => p._mealsEaten);
-            double throughput = (double)totalMeals / _totalSimulationTimeMs;
-            Console.WriteLine($"\nПропускная способность: {throughput:0.0000} еды/мс");
-
+            double throughput = (double)totalMeals / _totalSimulationTimeMs * 1000; // еда/секунду
+            Console.WriteLine($"\nПропускная способность: {throughput:0.0000} еды/с");
+            Console.WriteLine($"Всего съедено: {totalMeals} раз");
 
 
 
@@ -187,7 +190,8 @@ namespace Philosophers.ConsoleApp
             foreach (var philosopher in _philosophers)
             {
                 Console.WriteLine($"  {philosopher._name}: {philosopher._mealsEaten} meals, " +
-                                $"Среднее время ожидания: {philosopher.GetAverageHungryTime():0.00} мс");
+                                $"Среднее время ожидания: {philosopher.GetAverageHungryTime():0.00} мс " +
+                        $"Всего ждал: {philosopher.TotalHungryTimeMs} мс");
             }
             
             // Время ожидания
@@ -196,14 +200,18 @@ namespace Philosophers.ConsoleApp
             Console.WriteLine($"\nВремя ожидания:");
             Console.WriteLine($"  Среднее: {avgWait:0.00} мс");
             Console.WriteLine($"  Максимальное ({maxWait?._name}): {maxWait?.GetAverageHungryTime():0.00} мс");
-            
+
             // Утилизация вилок
             Console.WriteLine("\nУтилизация вилок:");
             foreach (var fork in _forks)
             {
                 double utilization = fork.GetUtilizationPercentage(_totalSimulationTimeMs);
-    Console.WriteLine($"  {fork._name}: {utilization:0.00}%");
+                double availability = 100 - utilization;
+                Console.WriteLine($"  {fork._name}: {utilization:0.00}% использования, {availability:0.00}% доступности");
+                Console.WriteLine($"    Всего использована: {fork.TotalInUseTimeMs} мс, доступна: {fork.TotalAvailableTimeMs} мс");
             }
+
+            
         }
     }
 }

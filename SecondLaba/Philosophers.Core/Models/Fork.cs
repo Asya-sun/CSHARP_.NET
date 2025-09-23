@@ -22,7 +22,7 @@ namespace Philosophers.Core.Models
         // Метрики
         public long TotalInUseTimeMs { get; private set; }
         public long TotalAvailableTimeMs { get; private set; }
-        public DateTime LastStateChange { get; private set; } = DateTime.Now;
+        public DateTime _lastStateChange { get; private set; } = DateTime.Now;
 
         public int _id { get; }
         public string _name => $"Fork-{_id}";
@@ -31,6 +31,7 @@ namespace Philosophers.Core.Models
         public Fork(int id)
         {
             _id = id;
+            _lastStateChange = DateTime.Now;
         }
 
 
@@ -42,13 +43,14 @@ namespace Philosophers.Core.Models
             {
                 try
                 {
+                    // update metrics before changing state
                     UpdateMetrics();
 
                     if (_state == ForkState.Available)
                     {
                         _state = ForkState.InUse;
                         _currentUser = philosopher;
-                        LastStateChange = DateTime.Now;
+                        _lastStateChange = DateTime.Now;
                         _usageTimer.Restart();
                         return true;
                     }
@@ -67,13 +69,14 @@ namespace Philosophers.Core.Models
             {
                 if (_currentUser == philosopher)
                 {
+                    // update metrics before changing state
                     UpdateMetrics();
                     _state = ForkState.Available;
                     _currentUser = null;
 
-                    LastStateChange = DateTime.Now;
+                    _lastStateChange = DateTime.Now;
                     _usageTimer.Stop();
-                    TotalInUseTimeMs += _usageTimer.ElapsedMilliseconds;
+                    //TotalInUseTimeMs += _usageTimer.ElapsedMilliseconds;
                 }
             }
         }
@@ -82,7 +85,7 @@ namespace Philosophers.Core.Models
         public void UpdateMetrics()
         {
             var now = DateTime.Now;
-            var timeSinceLastChange = (now - LastStateChange).TotalMilliseconds;
+            var timeSinceLastChange = (now - _lastStateChange).TotalMilliseconds;
 
             if (_state == ForkState.Available)
             {
@@ -93,14 +96,18 @@ namespace Philosophers.Core.Models
                 TotalInUseTimeMs += (long)timeSinceLastChange;
             }
 
-            LastStateChange = now;
+            _lastStateChange = now;
         }
 
 
         public double GetUtilizationPercentage(long totalSimulationTimeMs)
         {
             if (totalSimulationTimeMs == 0) return 0;
-            return (double)TotalInUseTimeMs / totalSimulationTimeMs * 100;
+            //return (double)TotalInUseTimeMs / totalSimulationTimeMs * 100;
+
+            // Убедимся, что время использования не превышает общее время симуляции
+            var actualInUseTime = Math.Min(TotalInUseTimeMs, totalSimulationTimeMs);
+            return (double)actualInUseTime / totalSimulationTimeMs * 100;
         }
     }
 }
