@@ -61,10 +61,10 @@ namespace Philosophers.Core.Models
 
         public Philosopher()
         {
-            //_currentThinkingTime = _random.Next(3, 11);
-            //_currentEatingTime = _random.Next(4, 6);
-            _currentThinkingTime = 10;
-            _currentEatingTime = 3;
+            _currentThinkingTime = _random.Next(3, 11);
+            _currentEatingTime = _random.Next(4, 6);
+            //_currentThinkingTime = 10;
+            //_currentEatingTime = 3;
         }
 
         public void ExecuteStep(int currentStep)
@@ -85,8 +85,8 @@ namespace Philosophers.Core.Models
                 _state = PhilosopherState.Hungry;
                 _stepsInCurrentState = 0;
                 // for next thinking
-                //_currentThinkingTime = _random.Next(3, 11);
-                _currentThinkingTime = 5;
+                _currentThinkingTime = _random.Next(3, 11);
+                //_currentThinkingTime = 5;
             }
             else if (_state == PhilosopherState.Eating && _stepsInCurrentState >= _currentEatingTime)
             {
@@ -96,8 +96,8 @@ namespace Philosophers.Core.Models
                 LastEatStep = currentStep;
                 ReleaseForks();
                 // for next eating
-                //_currentEatingTime = _random.Next(4, 6);
-                _currentEatingTime = 10;
+                _currentEatingTime = _random.Next(4, 6);
+                //_currentEatingTime = 10;
                 _сurrentHungryStreak = 0;
             } 
             else if (_takingLeftFork && _state == PhilosopherState.Hungry)

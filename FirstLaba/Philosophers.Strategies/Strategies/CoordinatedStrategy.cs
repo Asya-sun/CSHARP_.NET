@@ -47,13 +47,13 @@ namespace Philosophers.Strategies.Strategies
                     break;
             }
 
-            if (success)
-            {
-                if (_philosopher.HasLeftFork && _philosopher.HasRightFork)
-                {
-                    _philosopher.TryStartEating();
-                }
-            }
+            //if (success)
+            //{
+            //    if (_philosopher.HasLeftFork && _philosopher.HasRightFork)
+            //    {
+            //        _philosopher.TryStartEating();
+            //    }
+            //}
         }
     }
 }

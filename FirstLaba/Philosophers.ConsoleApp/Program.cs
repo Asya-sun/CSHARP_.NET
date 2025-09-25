@@ -18,9 +18,9 @@ namespace Philosophers.ConsoleApp
 
             var strategyFactory = new StrategyFactory();
             var simulation = new Simulation(strategyFactory);
-            //simulation.Initialize("Coordinated");
-            simulation.Initialize("Naive");
-            simulation.Run(100, 1);
+            simulation.Initialize("Coordinated");
+            //simulation.Initialize("Naive");
+            simulation.Run(100000, 1000);
             simulation.PrintResults();
         }
     }
