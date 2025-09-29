@@ -1,4 +1,6 @@
-﻿using Philosophers.Core.Interfaces;
+﻿using Philosophers.ConsoleApp.Metrics;
+using Philosophers.Core.Interfaces;
+using Philosophers.Core.Metrics;
 using Philosophers.Core.Models;
 using Philosophers.Core.Models.Enums;
 using Philosophers.Strategies;
@@ -23,8 +25,10 @@ namespace Philosophers.ConsoleApp
 
         public bool _isRunning { get; private set; }
         // 10 секунд по умолчанию
-        public int DurationMs { get; set; } = 10000; 
+        public int DurationMs { get; set; } = 10000;
 
+
+        private SimulationMetrics _metrics = new SimulationMetrics();
         public void Initialize(string strategyType)
         {
             CreateForks();
@@ -142,20 +146,36 @@ namespace Philosophers.ConsoleApp
             {
                 philosopher.Join();
             }
+            // Обновляем все метрики
+            _metrics.UpdateMetrics(_philosophers, _forks, _totalSimulationTimeMs);
+
 
             DisplayMetrics();
         }
+
+        
 
         private void UpdateStatus(object? state)
         {
             if (!_isRunning) return;
 
-            Console.WriteLine($"===== Время: {(DateTime.Now - _startTime).TotalMilliseconds:0} мс =====");
+            // Обновляем метрики для текущего статуса
+            var currentTimeMs = (long)(DateTime.Now - _startTime).TotalMilliseconds;
+            _metrics.UpdateMetrics(_philosophers, _forks, currentTimeMs);
+
+            Console.WriteLine($"===== Время: {currentTimeMs:0} мс =====");
 
             Console.WriteLine("Философы:");
-            foreach (var philosopher in _philosophers)
+
+            
+
+            foreach (var philosopherMetrics in _metrics.PhilosopherMetrics)
             {
-                Console.WriteLine($"  {philosopher._name}: {philosopher.State} (Action = {philosopher.CurrentAction}), съедено: {philosopher._mealsEaten}");
+                Console.WriteLine($"  {philosopherMetrics.Philosopher._name}: {philosopherMetrics.Philosopher.State} (Action = {philosopherMetrics.CurrentAction}), съедено: {philosopherMetrics.TotalMealsEaten}");
+                if (philosopherMetrics.Philosopher.IsHoldingLeftFork || philosopherMetrics.Philosopher.IsHoldingRightFork)
+                {
+                    Console.WriteLine($"    Держит вилки: {(philosopherMetrics.Philosopher.IsHoldingLeftFork ? "левую" : "")} {(philosopherMetrics.Philosopher.IsHoldingRightFork ? "правую" : "")}");
+                }
             }
 
             Console.WriteLine("\nВилки:");
@@ -167,46 +187,81 @@ namespace Philosophers.ConsoleApp
         }
 
 
+        //private void DisplayMetrics()
+        //{
+        //    Console.WriteLine("\n=== МЕТРИКИ СИМУЛЯЦИИ ===");
+        //    Console.WriteLine($"Общее время симуляции: {_totalSimulationTimeMs} мс");
+
+        //    // Пропускная способность
+        //    int totalMeals = _philosophers.Sum(p => p._mealsEaten);
+        //    double throughput = (double)totalMeals / _totalSimulationTimeMs * 1000; // еда/секунду
+        //    Console.WriteLine($"\nПропускная способность: {throughput:0.0000} еды/с");
+        //    Console.WriteLine($"Всего съедено: {totalMeals} раз");
+
+
+
+        //    // По философам
+        //    Console.WriteLine("\nФилософы:");
+        //    foreach (var philosopher in _philosophers)
+        //    {
+        //        Console.WriteLine($"  {philosopher._name}: {philosopher._mealsEaten} meals, " +
+        //                        $"Среднее время ожидания: {philosopher.GetAverageHungryTime():0.00} мс " +
+        //                $"Всего ждал: {philosopher.TotalHungryTimeMs} мс");
+        //    }
+
+        //    // Время ожидания
+        //    var maxWait = _philosophers.MaxBy(p => p.GetAverageHungryTime());
+        //    var avgWait = _philosophers.Average(p => p.GetAverageHungryTime());
+        //    Console.WriteLine($"\nВремя ожидания:");
+        //    Console.WriteLine($"  Среднее: {avgWait:0.00} мс");
+        //    Console.WriteLine($"  Максимальное ({maxWait?._name}): {maxWait?.GetAverageHungryTime():0.00} мс");
+
+        //    // Утилизация вилок
+        //    Console.WriteLine("\nУтилизация вилок:");
+        //    foreach (var fork in _forks)
+        //    {
+        //        double utilization = fork.GetUtilizationPercentage(_totalSimulationTimeMs);
+        //        double availability = 100 - utilization;
+        //        Console.WriteLine($"  {fork._name}: {utilization:0.00}% использования, {availability:0.00}% доступности");
+        //        Console.WriteLine($"    Всего использована: {fork.TotalInUseTimeMs} мс, доступна: {fork.TotalAvailableTimeMs} мс");
+        //    }
+        //}
+
         private void DisplayMetrics()
         {
             Console.WriteLine("\n=== МЕТРИКИ СИМУЛЯЦИИ ===");
-            Console.WriteLine($"Общее время симуляции: {_totalSimulationTimeMs} мс");
+            Console.WriteLine($"Общее время симуляции: {_metrics.TotalSimulationTimeMs} мс");
 
-            // Пропускная способность
-            int totalMeals = _philosophers.Sum(p => p._mealsEaten);
-            double throughput = (double)totalMeals / _totalSimulationTimeMs * 1000; // еда/секунду
-            Console.WriteLine($"\nПропускная способность: {throughput:0.0000} еды/с");
-            Console.WriteLine($"Всего съедено: {totalMeals} раз");
-
-
+            // Общая статистика
+            Console.WriteLine($"\nПропускная способность: {_metrics.TotalThroughputPerSecond:0.0000} еды/с");
+            Console.WriteLine($"Всего съедено: {_metrics.TotalMealsEaten} раз");
 
             // По философам
             Console.WriteLine("\nФилософы:");
-            foreach (var philosopher in _philosophers)
+            foreach (var philosopherMetrics in _metrics.PhilosopherMetrics)
             {
-                Console.WriteLine($"  {philosopher._name}: {philosopher._mealsEaten} meals, " +
-                                $"Среднее время ожидания: {philosopher.GetAverageHungryTime():0.00} мс " +
-                        $"Всего ждал: {philosopher.TotalHungryTimeMs} мс");
+                Console.WriteLine($"  {philosopherMetrics.Philosopher._name}: {philosopherMetrics.TotalMealsEaten} meals, " +
+                                $"Среднее время ожидания: {philosopherMetrics.AverageHungryTimeMs:0.00} мс, " +
+                                $"Пропускная способность: {philosopherMetrics.ThroughputPerSecond:0.0000} еды/с");
             }
-            
+
             // Время ожидания
-            var maxWait = _philosophers.MaxBy(p => p.GetAverageHungryTime());
-            var avgWait = _philosophers.Average(p => p.GetAverageHungryTime());
             Console.WriteLine($"\nВремя ожидания:");
-            Console.WriteLine($"  Среднее: {avgWait:0.00} мс");
-            Console.WriteLine($"  Максимальное ({maxWait?._name}): {maxWait?.GetAverageHungryTime():0.00} мс");
+            Console.WriteLine($"  Среднее: {_metrics.AverageHungryTimeMs:0.00} мс");
+            if (_metrics.MaxHungryPhilosopher != null)
+            {
+                Console.WriteLine($"  Максимальное ({_metrics.MaxHungryPhilosopher.Philosopher._name}): {_metrics.MaxHungryPhilosopher.AverageHungryTimeMs:0.00} мс");
+            }
 
             // Утилизация вилок
             Console.WriteLine("\nУтилизация вилок:");
-            foreach (var fork in _forks)
+            foreach (var forkMetrics in _metrics.ForkMetrics)
             {
-                double utilization = fork.GetUtilizationPercentage(_totalSimulationTimeMs);
+                double utilization = forkMetrics.GetUtilizationPercentage(_metrics.TotalSimulationTimeMs);
                 double availability = 100 - utilization;
-                Console.WriteLine($"  {fork._name}: {utilization:0.00}% использования, {availability:0.00}% доступности");
-                Console.WriteLine($"    Всего использована: {fork.TotalInUseTimeMs} мс, доступна: {fork.TotalAvailableTimeMs} мс");
+                Console.WriteLine($"  {forkMetrics.ForkName}: {utilization:0.00}% использования, {availability:0.00}% доступности");
             }
-
-            
         }
+
     }
 }

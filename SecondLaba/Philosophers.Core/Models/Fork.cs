@@ -1,4 +1,5 @@
-﻿using Philosophers.Core.Models.Enums;
+﻿using Philosophers.Core.Metrics;
+using Philosophers.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,10 +21,8 @@ namespace Philosophers.Core.Models
 
 
         // Метрики
-        public long TotalInUseTimeMs { get; private set; }
-        public long TotalAvailableTimeMs { get; private set; }
-        public DateTime _lastStateChange { get; private set; } = DateTime.Now;
-
+        public ForkMetrics Metrics { get; private set; }
+        
         public int _id { get; }
         public string _name => $"Fork-{_id}";
         public ForkState _state { get; private set; } = ForkState.Available;
@@ -31,7 +30,8 @@ namespace Philosophers.Core.Models
         public Fork(int id)
         {
             _id = id;
-            _lastStateChange = DateTime.Now;
+            Metrics = new ForkMetrics(_name);
+            Metrics._lastStateChange = DateTime.Now;
         }
 
 
@@ -49,7 +49,7 @@ namespace Philosophers.Core.Models
                     {
                         _state = ForkState.InUse;
                         _currentUser = philosopher;
-                        _lastStateChange = DateTime.Now;
+                        Metrics._lastStateChange = DateTime.Now;
                         _usageTimer.Restart();
 
                         Thread.Sleep(20);
@@ -76,7 +76,7 @@ namespace Philosophers.Core.Models
                     _state = ForkState.Available;
                     _currentUser = null;
 
-                    _lastStateChange = DateTime.Now;
+                    Metrics._lastStateChange = DateTime.Now;
                     _usageTimer.Stop();
                     //TotalInUseTimeMs += _usageTimer.ElapsedMilliseconds;
                 }
@@ -87,29 +87,24 @@ namespace Philosophers.Core.Models
         public void UpdateMetrics()
         {
             var now = DateTime.Now;
-            var timeSinceLastChange = (now - _lastStateChange).TotalMilliseconds;
+            var timeSinceLastChange = (now - Metrics._lastStateChange).TotalMilliseconds;
 
             if (_state == ForkState.Available)
             {
-                TotalAvailableTimeMs += (long)timeSinceLastChange;
+                Metrics.TotalAvailableTimeMs += (long)timeSinceLastChange;
             }
             else
             {
-                TotalInUseTimeMs += (long)timeSinceLastChange;
+                Metrics.TotalInUseTimeMs += (long)timeSinceLastChange;
             }
 
-            _lastStateChange = now;
+            Metrics._lastStateChange = now;
         }
 
 
         public double GetUtilizationPercentage(long totalSimulationTimeMs)
         {
-            if (totalSimulationTimeMs == 0) return 0;
-            //return (double)TotalInUseTimeMs / totalSimulationTimeMs * 100;
-
-            // Убедимся, что время использования не превышает общее время симуляции
-            var actualInUseTime = Math.Min(TotalInUseTimeMs, totalSimulationTimeMs);
-            return (double)actualInUseTime / totalSimulationTimeMs * 100;
+            return Metrics.GetUtilizationPercentage(totalSimulationTimeMs);
         }
     }
 }

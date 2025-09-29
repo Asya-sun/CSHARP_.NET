@@ -1,4 +1,5 @@
 ﻿using Philosophers.Core.Interfaces;
+using Philosophers.Core.Metrics;
 using Philosophers.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,6 @@ namespace Philosophers.Core.Models
         // утту должно быть set 1 раз только
         public int _id {  get; set; }
         public PhilosopherState State { get; private set; } = PhilosopherState.Thinking;
-        public int _mealsEaten { get; private set; } = 0;
         public Fork LeftFork { get;  }
         public Fork RightFork { get; }
         // Флаги владения вилками
@@ -32,12 +32,9 @@ namespace Philosophers.Core.Models
         public IPhilosopherStrategy _strategy { get; set; } = null!;
 
         // Метрики
-        public long TotalHungryTimeMs { get; private set; }
-        public int HungryCount { get; private set; }
-        public string CurrentAction { get; private set; } = "None";
+        public PhilosopherMetrics Metrics { get; private set; }
 
-
-
+        
         public Philosopher(int id, string name, Fork leftFork, Fork rightFork, IPhilosopherStrategy strategy,  CancellationToken  token )
         {
             _id = id;
@@ -47,6 +44,7 @@ namespace Philosophers.Core.Models
             _thread = new Thread(Run);
             _strategy = strategy;
             _cancellationToken = token;
+            Metrics = new PhilosopherMetrics(this);
         }
 
         
@@ -62,33 +60,33 @@ namespace Philosophers.Core.Models
                 switch (State)
                 {
                     case PhilosopherState.Eating:
-                        CurrentAction = "Eating";
+                        Metrics.CurrentAction = "Eating";
                         Eat();
                         ReleaseForks();
 
                         State = PhilosopherState.Thinking;
-                        CurrentAction = "Thinking";
+                        Metrics.CurrentAction = "Thinking";
                         break;
                     case PhilosopherState.Thinking:
                         Think();
                         State = PhilosopherState.Hungry;
                         _hungryTimer.Restart();
-                        CurrentAction = "TryingToAcquireForks";
+                        Metrics.CurrentAction = "TryingToAcquireForks";
                         break;
                     case PhilosopherState.Hungry:
                         if (TryEat())
                         {
                             _hungryTimer.Stop();
-                            TotalHungryTimeMs += _hungryTimer.ElapsedMilliseconds;
+                            Metrics.TotalHungryTimeMs += _hungryTimer.ElapsedMilliseconds;
                             State = PhilosopherState.Eating;
+                            Metrics.HungryCount++;
 
-
-                            CurrentAction = "Eating";
+                            Metrics.CurrentAction = "Eating";
 
                         }
                         else
                         {
-                            CurrentAction = "WaitingForForks";
+                            Metrics.CurrentAction = "WaitingForForks";
                         }
                         break;
                 }
@@ -137,7 +135,8 @@ namespace Philosophers.Core.Models
         {
             int eatTime = _random.Next(40, 51);
             Thread.Sleep(eatTime);
-            _mealsEaten++;
+            Metrics.TotalMealsEaten++;
+            //_mealsEaten++;
         }
 
         public void ReleaseLeftFork()
@@ -164,9 +163,10 @@ namespace Philosophers.Core.Models
             ReleaseRightFork();
         }
 
-        public double GetAverageHungryTime()
-        {
-            return HungryCount > 0 ? (double)TotalHungryTimeMs / HungryCount : 0;
-        }
+        public double GetAverageHungryTime() => Metrics.AverageHungryTimeMs;
+        //public double GetAverageHungryTime()
+        //{
+        //    return Metrics.HungryCount > 0 ? (double)Metrics.TotalHungryTimeMs / Metrics.HungryCount : 0;
+        //}
     }
 }
