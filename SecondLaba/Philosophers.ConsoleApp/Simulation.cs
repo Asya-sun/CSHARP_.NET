@@ -42,20 +42,17 @@ namespace Philosophers.ConsoleApp
         }
 
         private void CreatePhilosophers(string strategyType)
-        {                
+        {
+            IPhilosopherStrategy strategy = strategyType switch
+            {
+                "Naive" => new NaiveStrategy(),
+                _ => throw new ArgumentException($"Unknown strategy: {strategyType}")
+            };
+
             for (int i = 0; i < 5; i++)
             {
-                // я хз, нужно тут было оставить фабрику или можно было забить, раз стратегия одна
-                IPhilosopherStrategy strategy = strategyType switch
-                {
-                    "Naive" => new NaiveStrategy(),
-                    _ => throw new ArgumentException($"Unknown strategy: {strategyType}")
-                };
-
                 var philosopher = new Philosopher(i + 1, $"Философ-{i + 1}", _forks[i], _forks[(i + 1) % 5], strategy, _cts.Token );
 
-
-                philosopher._strategy.Initialize(philosopher);
                 _philosophers.Add(philosopher);
             }
         }
@@ -153,13 +150,11 @@ namespace Philosophers.ConsoleApp
         {
             if (!_isRunning) return;
 
-            //Console.Clear();
             Console.WriteLine($"===== Время: {(DateTime.Now - _startTime).TotalMilliseconds:0} мс =====");
 
             Console.WriteLine("Философы:");
             foreach (var philosopher in _philosophers)
             {
-                // Убираем рандом и steps left -просто показываем состояние и действие
                 Console.WriteLine($"  {philosopher._name}: {philosopher.State} (Action = {philosopher.CurrentAction}), съедено: {philosopher._mealsEaten}");
             }
 
@@ -196,7 +191,7 @@ namespace Philosophers.ConsoleApp
             
             // Время ожидания
             var maxWait = _philosophers.MaxBy(p => p.GetAverageHungryTime());
-        var avgWait = _philosophers.Average(p => p.GetAverageHungryTime());
+            var avgWait = _philosophers.Average(p => p.GetAverageHungryTime());
             Console.WriteLine($"\nВремя ожидания:");
             Console.WriteLine($"  Среднее: {avgWait:0.00} мс");
             Console.WriteLine($"  Максимальное ({maxWait?._name}): {maxWait?.GetAverageHungryTime():0.00} мс");

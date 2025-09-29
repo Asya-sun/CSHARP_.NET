@@ -35,9 +35,8 @@ namespace Philosophers.Core.Models
         }
 
 
-        public bool TryTake(Philosopher philosopher, int timeoutMs = 20)
+        public bool TryTake(Philosopher philosopher, int timeoutMs = 10)
         {
-            //UpdateMetrics();
 
             if (Monitor.TryEnter(_lockObject, timeoutMs))
             {
@@ -52,6 +51,9 @@ namespace Philosophers.Core.Models
                         _currentUser = philosopher;
                         _lastStateChange = DateTime.Now;
                         _usageTimer.Restart();
+
+                        Thread.Sleep(20);
+
                         return true;
                     }
                 }

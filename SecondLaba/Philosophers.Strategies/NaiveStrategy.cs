@@ -12,23 +12,20 @@ namespace Philosophers.Strategies
     public class NaiveStrategy : IPhilosopherStrategy
     {
         public string _name => "Naive";
-        private Philosopher _philosopher = null!;
+        
+        
 
-        public void Initialize(Philosopher philosopher)
+        
+        public bool requestOnEat(Philosopher philosopher)
         {
-            _philosopher = philosopher;
-        }
 
-
-        public bool TryAcquireForks()
-        {
             //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} пытается взять вилки");
 
-            if (_philosopher.LeftFork.TryTake(_philosopher))
+            if (philosopher.LeftFork.TryTake(philosopher))
             {
                 //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял левую вилку");
 
-                if (_philosopher.RightFork.TryTake(_philosopher))
+                if (philosopher.RightFork.TryTake(philosopher))
                 {
                     //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял правую вилку - УСПЕХ");
                     return true;
@@ -36,7 +33,7 @@ namespace Philosophers.Strategies
                 else
                 {
                     //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять правую вилку");
-                    _philosopher.LeftFork.Release(_philosopher);
+                    philosopher.LeftFork.Release(philosopher);
                     return false;
                 }
             }

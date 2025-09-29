@@ -23,6 +23,7 @@ namespace Philosophers.Core.Models
         public int _mealsEaten { get; private set; } = 0;
         public Fork LeftFork { get;  }
         public Fork RightFork { get; }
+
         public IPhilosopherStrategy _strategy { get; set; } = null!;
 
         // Метрики
@@ -31,9 +32,6 @@ namespace Philosophers.Core.Models
         public string CurrentAction { get; private set; } = "None";
 
 
-        // For preventions deadlocks
-        private int _failedAttempts = 0;
-        private const int MAX_FAILED_ATTEMPTS = 3;
 
         public Philosopher(int id, string name, Fork leftFork, Fork rightFork, IPhilosopherStrategy strategy,  CancellationToken  token )
         {
@@ -62,13 +60,13 @@ namespace Philosophers.Core.Models
                         CurrentAction = "Eating";
                         Eat();
                         ReleaseForks();
+
                         State = PhilosopherState.Thinking;
                         CurrentAction = "Thinking";
                         break;
                     case PhilosopherState.Thinking:
                         Think();
                         State = PhilosopherState.Hungry;
-                        HungryCount++;
                         _hungryTimer.Restart();
                         CurrentAction = "TryingToAcquireForks";
                         break;
@@ -85,8 +83,7 @@ namespace Philosophers.Core.Models
                         }
                         else
                         {
-                            // Краткая пауза перед повторной попыткой
-                            Thread.Sleep(10);
+                            CurrentAction = "WaitingForForks";
                         }
                         break;
                 }
@@ -96,25 +93,11 @@ namespace Philosophers.Core.Models
 
         private bool TryEat()
         {
-            if (_strategy.TryAcquireForks())
+            if (_strategy.requestOnEat(this))
             {
-                _failedAttempts = 0;
                 return true;
             }
-            else
-            {
-                _failedAttempts++;
-
-                // Если много неудачных попыток - отпускаем все вилки и ждем
-                if (_failedAttempts >= MAX_FAILED_ATTEMPTS)
-                {
-                    ReleaseForks();
-                    // ждем, пока другой поест
-                    Thread.Sleep(_random.Next(40, 51)); // Даем другим шанс
-                    _failedAttempts = 0;
-                }
-                return false;
-            }
+            return false;
         }
 
 

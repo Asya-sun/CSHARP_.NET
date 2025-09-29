@@ -10,8 +10,7 @@ namespace Philosophers.Core.Interfaces
     public interface IPhilosopherStrategy
     {
         string _name { get; }
-        void Initialize(Philosopher philosopher);
 
-        public bool TryAcquireForks();
+        public bool requestOnEat(Philosopher philosopher);
     }
 }
