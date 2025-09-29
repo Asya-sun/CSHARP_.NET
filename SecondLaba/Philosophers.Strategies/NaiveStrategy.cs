@@ -12,33 +12,48 @@ namespace Philosophers.Strategies
     public class NaiveStrategy : IPhilosopherStrategy
     {
         public string _name => "Naive";
-        
-        
+        private readonly Random _random = new Random();
 
-        
+
         public bool requestOnEat(Philosopher philosopher)
         {
-
-            //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} пытается взять вилки");
-
-            if (philosopher.LeftFork.TryTake(philosopher))
+            // Попытка взять левую вилку
+            if (!philosopher.IsHoldingLeftFork)
             {
-                //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял левую вилку");
-
-                if (philosopher.RightFork.TryTake(philosopher))
+                if (!philosopher.TryTakeLeftFork())
                 {
-                    //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} взял правую вилку - УСПЕХ");
-                    return true;
-                }
-                else
-                {
-                    //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять правую вилку");
-                    philosopher.LeftFork.Release(philosopher);
                     return false;
                 }
             }
-            //Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {_philosopher._name} не смог взять левую вилку");
-            return false;
+
+            // Попытка взять правую вилку с таймаутом
+            if (!philosopher.IsHoldingRightFork)
+            {
+                int attempts = 0;
+                const int maxAttempts = 3;
+
+                while (attempts < maxAttempts)
+                {
+                    if (philosopher.TryTakeRightFork())
+                    {
+                        return true; // Успех - обе вилки получены
+                    }
+
+                    attempts++;
+                    if (attempts < maxAttempts)
+                    {
+                        Thread.Sleep(_random.Next(5, 25)); // Короткая пауза перед повторной попыткой
+                    }
+                }
+
+                // Не удалось получить правую вилку - отпускаем левую
+                philosopher.ReleaseLeftFork();
+                // тк не удалось взять вилки - заставляем философа подождать перед повторной попыткой
+                Thread.Sleep(_random.Next(10, 30));
+                return false;
+            }
+
+            return philosopher.HasBothForks;
         }
 
 

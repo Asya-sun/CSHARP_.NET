@@ -23,6 +23,11 @@ namespace Philosophers.Core.Models
         public int _mealsEaten { get; private set; } = 0;
         public Fork LeftFork { get;  }
         public Fork RightFork { get; }
+        // Флаги владения вилками
+        public bool IsHoldingLeftFork { get; private set; }
+        public bool IsHoldingRightFork { get; private set; }
+        public bool HasBothForks => IsHoldingLeftFork && IsHoldingRightFork;
+
 
         public IPhilosopherStrategy _strategy { get; set; } = null!;
 
@@ -108,6 +113,25 @@ namespace Philosophers.Core.Models
             int thinkTime = _random.Next(30, 101);
             Thread.Sleep(thinkTime);
         }
+        public bool TryTakeLeftFork()
+        {
+            if (!IsHoldingLeftFork && LeftFork.TryTake(this))
+            {
+                IsHoldingLeftFork = true;
+                return true;
+            }
+            return false;
+        }
+
+        public bool TryTakeRightFork()
+        {
+            if (!IsHoldingRightFork && RightFork.TryTake(this))
+            {
+                IsHoldingRightFork = true;
+                return true;
+            }
+            return false;
+        }
 
         private void Eat()
         {
@@ -116,12 +140,29 @@ namespace Philosophers.Core.Models
             _mealsEaten++;
         }
 
-        public void ReleaseForks()
+        public void ReleaseLeftFork()
         {
-            LeftFork.Release(this);
-            RightFork.Release(this);
+            if (IsHoldingLeftFork)
+            {
+                LeftFork.Release(this);
+                IsHoldingLeftFork = false;
+            }
         }
 
+        public void ReleaseRightFork()
+        {
+            if (IsHoldingRightFork)
+            {
+                RightFork.Release(this);
+                IsHoldingRightFork = false;
+            }
+        }
+
+        public void ReleaseForks()
+        {
+            ReleaseLeftFork();
+            ReleaseRightFork();
+        }
 
         public double GetAverageHungryTime()
         {
