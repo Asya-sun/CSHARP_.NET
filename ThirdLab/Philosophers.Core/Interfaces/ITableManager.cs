@@ -14,8 +14,10 @@ public interface ITableManager
     string? GetForkOwner(int forkId);
     (int leftForkId, int rightForkId) GetPhilosopherForks(string philosopherName);
 
-    // Методы для отображения состояния (как в задании)
+    // Методы для отображения состояния
     IReadOnlyList<Philosopher> GetAllPhilosophers();
     IReadOnlyList<Fork> GetAllForks();
     (ForkState left, ForkState right) GetAdjacentForksState(string philosopherName);
+
+    void UpdatePhilosopherState(string name, PhilosopherState state,string action = "None");
 }

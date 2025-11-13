@@ -29,15 +29,13 @@ public class SimulationHostedService : BackgroundService
     {
         _logger.LogInformation("Симуляция запущена. Длительность: {DurationSeconds} секунд", _options.DurationSeconds);
 
-        // Ждем указанное время
         await Task.Delay(TimeSpan.FromSeconds(_options.DurationSeconds), stoppingToken);
 
         _logger.LogInformation("Время симуляции истекло. Завершаем...");
 
-        // Печатаем метрики
+        // Просто выводим метрики - они уже собраны в реальном времени
         _metricsCollector.PrintMetrics();
 
-        // Останавливаем приложение
         _hostApplicationLifetime.StopApplication();
     }
 }

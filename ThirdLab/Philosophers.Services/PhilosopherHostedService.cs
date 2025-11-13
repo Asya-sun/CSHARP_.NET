@@ -11,7 +11,6 @@ namespace Philosophers.Services;
 
 public abstract class PhilosopherHostedService : BackgroundService
 {
-
     protected readonly string _name;
     protected readonly ITableManager _tableManager;
     protected readonly IPhilosopherStrategy _strategy;
@@ -25,6 +24,8 @@ public abstract class PhilosopherHostedService : BackgroundService
     protected int _eatCount = 0;
     protected string _action = "None";
     protected Stopwatch _hungryTimer = new Stopwatch();
+    protected Stopwatch _thinkingTimer = new Stopwatch();
+    protected Stopwatch _eatingTimer = new Stopwatch();
 
     protected PhilosopherHostedService(
         string name,
@@ -40,6 +41,9 @@ public abstract class PhilosopherHostedService : BackgroundService
         _metricsCollector = metricsCollector;
         _options = options.Value;
         _logger = logger;
+
+        // Начинаем с мышления
+        _thinkingTimer.Start();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,10 +58,13 @@ public abstract class PhilosopherHostedService : BackgroundService
                 {
                     case PhilosopherState.Thinking:
                         await Think(stoppingToken);
+                        _thinkingTimer.Stop();
+                        _metricsCollector.RecordThinkingTime(_name, _thinkingTimer.Elapsed);
+
                         _state = PhilosopherState.Hungry;
                         _hungryTimer.Restart();
                         _action = "TakeLeftFork|TakeRightFork";
-                        _logger.LogInformation("Философ {Philosopher} проголодался", _name);
+                        _logger.LogDebug("Философ {Philosopher} проголодался", _name);
                         break;
 
                     case PhilosopherState.Hungry:
@@ -65,31 +72,37 @@ public abstract class PhilosopherHostedService : BackgroundService
                         {
                             _hungryTimer.Stop();
                             _metricsCollector.RecordWaitingTime(_name, _hungryTimer.Elapsed);
+
                             _state = PhilosopherState.Eating;
                             _stepsLeft = _random.Next(_options.EatingTimeMin, _options.EatingTimeMax + 1);
                             _action = "Eating";
-                            _logger.LogInformation("Философ {Philosopher} начинает есть", _name);
+                            _eatingTimer.Restart();
+                            _logger.LogDebug("Философ {Philosopher} начинает есть", _name);
                         }
                         else
                         {
                             _action = "WaitingForForks";
-                            // Короткая пауза перед следующей попыткой
                             await Task.Delay(10, stoppingToken);
                         }
                         break;
 
                     case PhilosopherState.Eating:
                         await Eat(stoppingToken);
+                        _eatingTimer.Stop();
+                        _metricsCollector.RecordEatingTime(_name, _eatingTimer.Elapsed);
+
                         _strategy.ReleaseForks(_name, _tableManager);
                         _eatCount++;
                         _metricsCollector.RecordEating(_name);
+
                         _state = PhilosopherState.Thinking;
                         _action = "ReleaseLeftFork|ReleaseRightFork";
-                        _logger.LogInformation("Философ {Philosopher} закончил есть. Всего поел: {EatCount} раз", _name, _eatCount);
+                        _thinkingTimer.Restart();
+                        _logger.LogDebug("Философ {Philosopher} закончил есть. Всего поел: {EatCount} раз", _name, _eatCount);
                         break;
                 }
 
-                // Обновляем состояние в TableManager
+
                 UpdateStateInTableManager();
             }
             catch (OperationCanceledException)
@@ -112,15 +125,9 @@ public abstract class PhilosopherHostedService : BackgroundService
 
         while (_stepsLeft > 0 && !cancellationToken.IsCancellationRequested)
         {
-            await Task.Delay(100, cancellationToken); // Имитация шага мышления
+            await Task.Delay(100, cancellationToken);
             _stepsLeft -= 100;
-            UpdateStateInTableManager();
         }
-    }
-
-    protected virtual async Task<bool> TryEat(CancellationToken cancellationToken)
-    {
-        return await _strategy.TryAcquireForksAsync(_name, _tableManager, cancellationToken);
     }
 
     protected virtual async Task Eat(CancellationToken cancellationToken)
@@ -130,15 +137,18 @@ public abstract class PhilosopherHostedService : BackgroundService
 
         while (_stepsLeft > 0 && !cancellationToken.IsCancellationRequested)
         {
-            await Task.Delay(100, cancellationToken); // Имитация шага еды
+            await Task.Delay(100, cancellationToken);
             _stepsLeft -= 100;
-            UpdateStateInTableManager();
         }
+    }
+
+    protected virtual async Task<bool> TryEat(CancellationToken cancellationToken)
+    {
+        return await _strategy.TryAcquireForksAsync(_name, _tableManager, cancellationToken);
     }
 
     protected virtual void UpdateStateInTableManager()
     {
-        // Этот метод будет реализован после доработки TableManager
-        // Пока что оставляем заглушку
+        _tableManager.UpdatePhilosopherState(_name, _state, _action);
     }
 }

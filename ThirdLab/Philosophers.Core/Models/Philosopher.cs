@@ -6,7 +6,6 @@ public class Philosopher
 {
     public string Name { get; set; }
     public PhilosopherState State { get; set; }
-    public int StepsLeft { get; set; }
     public int EatCount { get; set; }
     public string Action { get; set; } = "None";
 
@@ -14,7 +13,6 @@ public class Philosopher
     {
         Name = name;
         State = PhilosopherState.Thinking;
-        StepsLeft = 0;
         EatCount = 0;
     }
 }

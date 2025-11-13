@@ -1,10 +1,10 @@
 ﻿using Philosophers.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Text;
-
 using System.Collections.Concurrent;
 using Philosophers.Core.Models;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace Philosophers.Services;
 
@@ -13,7 +13,10 @@ public class MetricsCollector : IMetricsCollector
     private readonly ILogger<MetricsCollector> _logger;
     private readonly ConcurrentDictionary<string, int> _eatCount = new();
     private readonly ConcurrentDictionary<string, ConcurrentBag<TimeSpan>> _waitingTimes = new();
-    private readonly ConcurrentDictionary<int, TimeSpan> _forkUsage = new();
+    private readonly ConcurrentDictionary<string, ConcurrentBag<TimeSpan>> _thinkingTimes = new();
+    private readonly ConcurrentDictionary<string, ConcurrentBag<TimeSpan>> _eatingTimes = new();
+    private readonly ConcurrentDictionary<int, Stopwatch> _forkUsageTimers = new();
+    private readonly ConcurrentDictionary<int, TimeSpan> _forkTotalUsage = new();
     private readonly SimulationOptions _options;
 
     public MetricsCollector(ILogger<MetricsCollector> logger, IOptions<SimulationOptions> options)
@@ -21,88 +24,123 @@ public class MetricsCollector : IMetricsCollector
         _logger = logger;
         _options = options.Value;
 
-        // Инициализация для вилок
+        // Инициализация таймеров для вилок
         for (int i = 1; i <= 5; i++)
         {
-            _forkUsage[i] = TimeSpan.Zero;
+            _forkUsageTimers[i] = new Stopwatch();
+            _forkTotalUsage[i] = TimeSpan.Zero;
         }
     }
 
     public void RecordEating(string philosopherName)
     {
-        // Атомарно увеличиваем счетчик
         _eatCount.AddOrUpdate(philosopherName, 1, (key, oldValue) => oldValue + 1);
-
-        _logger.LogDebug("Записан прием пищи для {Philosopher}", philosopherName);
     }
 
     public void RecordWaitingTime(string philosopherName, TimeSpan waitingTime)
     {
-        // Получаем или создаем коллекцию для философа
-        var bag = _waitingTimes.GetOrAdd(philosopherName,
-            new ConcurrentBag<TimeSpan>());
-
-        // Добавляем время ожидания (ConcurrentBag потокобезопасен)
+        var bag = _waitingTimes.GetOrAdd(philosopherName, new ConcurrentBag<TimeSpan>());
         bag.Add(waitingTime);
-
-        _logger.LogDebug("Записано время ожидания для {Philosopher}: {Time} мс",
-            philosopherName, waitingTime.TotalMilliseconds);
     }
 
-    public void RecordForkUsage(int forkId, TimeSpan usageTime)
+    public void RecordThinkingTime(string philosopherName, TimeSpan thinkingTime)
     {
-        // Атомарно обновляем время использования вилки
-        _forkUsage.AddOrUpdate(forkId, usageTime, (key, oldValue) => oldValue + usageTime);
+        var bag = _thinkingTimes.GetOrAdd(philosopherName, new ConcurrentBag<TimeSpan>());
+        bag.Add(thinkingTime);
+    }
+
+    public void RecordEatingTime(string philosopherName, TimeSpan eatingTime)
+    {
+        var bag = _eatingTimes.GetOrAdd(philosopherName, new ConcurrentBag<TimeSpan>());
+        bag.Add(eatingTime);
+    }
+
+    // ВИЛКИ: запись когда вилка берется
+    public void RecordForkAcquired(int forkId, string philosopherName)
+    {
+        _forkUsageTimers[forkId].Restart();
+    }
+
+    // ВИЛКИ: запись когда вилка отпускается
+    public void RecordForkReleased(int forkId)
+    {
+        if (_forkUsageTimers[forkId].IsRunning)
+        {
+            _forkUsageTimers[forkId].Stop();
+            var usageTime = _forkUsageTimers[forkId].Elapsed;
+            _forkTotalUsage.AddOrUpdate(forkId, usageTime, (key, oldValue) => oldValue + usageTime);
+        }
+    }
+
+    public int GetEatCount(string philosopherName)
+    {
+        return _eatCount.GetValueOrDefault(philosopherName, 0);
     }
 
     public void PrintMetrics()
     {
-        _logger.LogInformation("=== МЕТРИКИ СИМУЛЯЦИИ ===");
+        var sb = new StringBuilder();
+        sb.AppendLine("╔══════════════════════════════════════════════════════════════════════╗");
+        sb.AppendLine("║                         МЕТРИКИ СИМУЛЯЦИИ                           ║");
+        sb.AppendLine("╠══════════════════════════════════════════════════════════════════════╣");
 
-        // Пропускная способность
-        PrintThroughputMetrics();
+        PrintThroughputMetrics(sb);
+        sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
+        PrintWaitingTimeMetrics(sb);
+        sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
+        PrintForkUtilizationMetrics(sb);
 
-        // Время ожидания
-        PrintWaitingTimeMetrics();
+        sb.AppendLine("╚══════════════════════════════════════════════════════════════════════╝");
 
-        // Коэффициент утилизации вилок
-        PrintForkUtilizationMetrics();
+        _logger.LogInformation("{Metrics}", sb.ToString());
     }
 
-    private void PrintThroughputMetrics()
+    private void PrintThroughputMetrics(StringBuilder sb)
     {
-        _logger.LogInformation("ПРОПУСКНАЯ СПОСОБНОСТЬ:");
+        sb.AppendLine("║ ПРОПУСКНАЯ СПОСОБНОСТЬ (раз/сек):");
         int totalEatCount = 0;
         int philosopherCount = 0;
 
+        // Пропускная способность по каждому философу
         foreach (var (philosopher, count) in _eatCount)
         {
-            _logger.LogInformation("  {Philosopher}: {Count} раз", philosopher, count);
+            double throughput = count / _options.DurationSeconds;
+            sb.AppendLine($"║   {philosopher,-12}: {throughput,6:F3} раз/сек ({count,3} раз)");
             totalEatCount += count;
             philosopherCount++;
         }
 
         if (philosopherCount > 0)
         {
-            _logger.LogInformation("  СРЕДНЕЕ: {Average} раз", totalEatCount / philosopherCount);
+            double avgThroughput = totalEatCount / _options.DurationSeconds;
+            double avgPerPhilosopher = (double)totalEatCount / philosopherCount;
+            sb.AppendLine("║");
+            sb.AppendLine($"║   СРЕДНЯЯ: {avgThroughput,8:F3} раз/сек");
+            sb.AppendLine($"║   СРЕДНЕЕ НА ФИЛОСОФА: {avgPerPhilosopher,5:F1} раз");
         }
     }
 
-    private void PrintWaitingTimeMetrics()
+    private void PrintWaitingTimeMetrics(StringBuilder sb)
     {
-        _logger.LogInformation("ВРЕМЯ ОЖИДАНИЯ:");
+        sb.AppendLine("║ ВРЕМЯ ОЖИДАНИЯ (Hungry state):");
+
         TimeSpan maxWaitingTime = TimeSpan.Zero;
         string maxWaitingPhilosopher = "";
+        double totalAverageWaiting = 0;
+        int philosophersWithWaiting = 0;
 
-        foreach (var (philosopher, times) in _waitingTimes)
+        foreach (var philosopher in _eatCount.Keys)
         {
-            if (times.Any())
+            if (_waitingTimes.ContainsKey(philosopher) && _waitingTimes[philosopher].Any())
             {
-                var average = TimeSpan.FromMilliseconds(times.Average(t => t.TotalMilliseconds));
-                var max = times.Max();
+                var waitingTimes = _waitingTimes[philosopher].ToList();
+                var average = TimeSpan.FromMilliseconds(waitingTimes.Average(t => t.TotalMilliseconds));
+                var max = waitingTimes.Max();
 
-                _logger.LogInformation("  {Philosopher}: среднее {Average:F0} мс, макс {Max:F0} мс",
-                    philosopher, average.TotalMilliseconds, max.TotalMilliseconds);
+                sb.AppendLine($"║   {philosopher,-12}: ср. {average.TotalMilliseconds,6:F0} мс, макс {max.TotalMilliseconds,6:F0} мс");
+
+                totalAverageWaiting += average.TotalMilliseconds;
+                philosophersWithWaiting++;
 
                 if (max > maxWaitingTime)
                 {
@@ -112,29 +150,32 @@ public class MetricsCollector : IMetricsCollector
             }
             else
             {
-                _logger.LogInformation("  {Philosopher}: не было периодов ожидания", philosopher);
+                sb.AppendLine($"║   {philosopher,-12}: не было периодов ожидания");
             }
         }
 
-        if (maxWaitingTime > TimeSpan.Zero)
+        if (philosophersWithWaiting > 0)
         {
-            _logger.LogInformation("  МАКСИМАЛЬНОЕ: {Philosopher} - {Time:F0} мс",
-                maxWaitingPhilosopher, maxWaitingTime.TotalMilliseconds);
+            double overallAverage = totalAverageWaiting / philosophersWithWaiting;
+            sb.AppendLine("║");
+            sb.AppendLine($"║   СРЕДНЕЕ ПО ВСЕМ: {overallAverage,8:F0} мс");
+            sb.AppendLine($"║   МАКСИМАЛЬНОЕ: {maxWaitingTime.TotalMilliseconds,8:F0} мс ({maxWaitingPhilosopher})");
         }
     }
 
-    private void PrintForkUtilizationMetrics()
+    private void PrintForkUtilizationMetrics(StringBuilder sb)
     {
-        _logger.LogInformation("КОЭФФИЦИЕНТ УТИЛИЗАЦИИ ВИЛОК:");
-
-        // Используем значение из конфига вместо 120
+        sb.AppendLine("║ КОЭФФИЦИЕНТ УТИЛИЗАЦИИ ВИЛОК:");
         var totalSimulationTime = TimeSpan.FromSeconds(_options.DurationSeconds);
 
-        foreach (var (forkId, usageTime) in _forkUsage)
+        foreach (var (forkId, usageTime) in _forkTotalUsage.OrderBy(x => x.Key))
         {
             var utilization = (usageTime.TotalMilliseconds / totalSimulationTime.TotalMilliseconds) * 100;
-            _logger.LogInformation("  Вилка-{ForkId}: {Utilization:F2}%", forkId, utilization);
+            var freeTime = 100 - utilization;
+
+            sb.AppendLine($"║   Вилка-{forkId}:");
+            sb.AppendLine($"║     Использование: {utilization,6:F2}%");
+            sb.AppendLine($"║     Свободна:     {freeTime,6:F2}%");
         }
     }
-
 }

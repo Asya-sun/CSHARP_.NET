@@ -13,11 +13,12 @@ public class TableManager : ITableManager
     private readonly Dictionary<string, Philosopher> _philosophers;
     private readonly object _lockObject = new object();
     private readonly ILogger<TableManager> _logger;
-    private readonly Dictionary<int, Stopwatch> _forkUsageTimers = new();
+    private readonly IMetricsCollector _metricsCollector; // ← ДОБАВЛЯЕМ
 
-    public TableManager(ILogger<TableManager> logger)
+    public TableManager(ILogger<TableManager> logger, IMetricsCollector metricsCollector) // ← ДОБАВЛЯЕМ
     {
         _logger = logger;
+        _metricsCollector = metricsCollector;
 
         // Инициализация вилок
         _forks = new Dictionary<int, SemaphoreSlim>
@@ -30,7 +31,7 @@ public class TableManager : ITableManager
         };
         _forkOwners = new Dictionary<int, string>();
 
-        // Инициализация философов
+
         _philosophers = new Dictionary<string, Philosopher>
         {
             ["Платон"] = new Philosopher("Платон"),
@@ -39,12 +40,6 @@ public class TableManager : ITableManager
             ["Декарт"] = new Philosopher("Декарт"),
             ["Кант"] = new Philosopher("Кант")
         };
-
-        // Инициализация таймеров для метрик вилок
-        for (int i = 1; i <= 5; i++)
-        {
-            _forkUsageTimers[i] = new Stopwatch();
-        }
     }
 
     public async Task<bool> TryAcquireForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken)
@@ -57,8 +52,8 @@ public class TableManager : ITableManager
                 lock (_lockObject)
                 {
                     _forkOwners[forkId] = philosopherName;
-                    _forkUsageTimers[forkId].Start();
                 }
+                _metricsCollector.RecordForkAcquired(forkId, philosopherName); // ← ЗАПИСЫВАЕМ МЕТРИКУ
                 _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
                 return true;
             }
@@ -75,14 +70,15 @@ public class TableManager : ITableManager
                 if (_forkOwners.ContainsKey(forkId) && _forkOwners[forkId] == philosopherName)
                 {
                     _forkOwners.Remove(forkId);
-                    _forkUsageTimers[forkId].Stop();
                     semaphore.Release();
+                    _metricsCollector.RecordForkReleased(forkId); // ← ЗАПИСЫВАЕМ МЕТРИКУ
                     _logger.LogDebug("Философ {Philosopher} положил вилку {ForkId}", philosopherName, forkId);
                 }
             }
         }
     }
 
+    // Остальные методы остаются без изменений
     public ForkState GetForkState(int forkId)
     {
         lock (_lockObject)
@@ -112,34 +108,6 @@ public class TableManager : ITableManager
         };
     }
 
-    public Philosopher GetPhilosopherState(string name)
-    {
-        return _philosophers[name];
-    }
-
-    public void UpdatePhilosopherState(string name, PhilosopherState state, int stepsLeft = 0, string action = "None")
-    {
-        if (_philosophers.ContainsKey(name))
-        {
-            _philosophers[name].State = state;
-            _philosophers[name].StepsLeft = stepsLeft;
-            _philosophers[name].Action = action;
-        }
-    }
-
-    public void IncrementEatCount(string name)
-    {
-        if (_philosophers.ContainsKey(name))
-        {
-            _philosophers[name].EatCount++;
-        }
-    }
-
-    public IReadOnlyList<Philosopher> GetAllPhilosophers()
-    {
-        return _philosophers.Values.ToList();
-    }
-
     public IReadOnlyList<Fork> GetAllForks()
     {
         var forks = new List<Fork>();
@@ -161,8 +129,26 @@ public class TableManager : ITableManager
         return (GetForkState(leftForkId), GetForkState(rightForkId));
     }
 
-    public TimeSpan GetForkUsageTime(int forkId)
+
+    public void UpdatePhilosopherState(string name, PhilosopherState state, string action = "None")
     {
-        return _forkUsageTimers[forkId].Elapsed;
+        lock (_lockObject)
+        {
+            if (_philosophers.ContainsKey(name))
+            {
+                _philosophers[name].State = state;
+                _philosophers[name].Action = action;
+            }
+        }
     }
+
+    public IReadOnlyList<Philosopher> GetAllPhilosophers()
+    {
+        lock (_lockObject)
+        {
+            return _philosophers.Values.ToList();
+        }
+    }
+
+
 }
