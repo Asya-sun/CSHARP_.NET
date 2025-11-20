@@ -28,7 +28,8 @@ var host = Host.CreateDefaultBuilder(args)
         // Основные сервисы
         services.AddSingleton<ITableManager, TableManager>();
         services.AddSingleton<IMetricsCollector, MetricsCollector>();
-        services.AddSingleton<IPhilosopherStrategy, PoliteStrategy>();
+        //services.AddSingleton<IPhilosopherStrategy, PoliteStrategy>();
+        services.AddSingleton<IPhilosopherStrategy, StupidStrategy>();
 
         // Сервис отображения
         services.AddHostedService<DisplayService>();
