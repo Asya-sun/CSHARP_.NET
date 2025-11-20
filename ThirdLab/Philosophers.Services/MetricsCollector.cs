@@ -111,13 +111,13 @@ public class MetricsCollector : IMetricsCollector
         sb.AppendLine("║ ДЕДЛОКИ:");
         if (_deadlockCount > 0)
         {
-            sb.AppendLine($"║   🚨 Обнаружено дедлоков: {_deadlockCount}");
+            sb.AppendLine($"║   Обнаружено дедлоков: {_deadlockCount}");
             double deadlocksPerMinute = _deadlockCount / (_options.DurationSeconds / 60.0);
-            sb.AppendLine($"║   📊 Частота: {deadlocksPerMinute:F2} дедлоков/минуту");
+            sb.AppendLine($"║   Частота: {deadlocksPerMinute:F2} дедлоков/минуту");
         }
         else
         {
-            sb.AppendLine($"║   ✅ Дедлоков не обнаружено");
+            sb.AppendLine($"║   Дедлоков не обнаружено");
         }
     }
 

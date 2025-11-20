@@ -11,7 +11,8 @@ public class DeadlockDetector : BackgroundService
     private readonly ITableManager _tableManager;
     private readonly ILogger<DeadlockDetector> _logger;
     private readonly IMetricsCollector _metricsCollector;
-    private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(5); // Проверяем каждые 5 секунд
+    private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(5);
+    private readonly Random _random = new Random();
 
     public DeadlockDetector(
         ITableManager tableManager,
@@ -25,23 +26,21 @@ public class DeadlockDetector : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🔍 Детектор дедлоков запущен");
+        _logger.LogInformation("Детектор дедлоков запущен");
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                // Ждем перед следующей проверкой
                 await Task.Delay(_checkInterval, stoppingToken);
 
-                // Проверяем на дедлоки
                 if (CheckForDeadlock())
                 {
-                    _logger.LogWarning("🚨 ОБНАРУЖЕН ДЕДЛОК! Все философы голодны и все вилки заняты");
+                    _logger.LogWarning("ОБНАРУЖЕН ДЕДЛОК! Все философы голодны и все вилки заняты");
                     _metricsCollector.RecordDeadlock();
 
-                    // Здесь можно добавить логику "спасения" от дедлока
-                    // Например: заставить одного философа отпустить вилки
+                    // СПАСАЕМ СИТУАЦИЮ - заставляем философа отпустить вилки
+                    await ResolveDeadlock();
                 }
             }
             catch (OperationCanceledException)
@@ -54,23 +53,45 @@ public class DeadlockDetector : BackgroundService
             }
         }
 
-        _logger.LogInformation("🔍 Детектор дедлоков остановлен");
+        _logger.LogInformation("Детектор дедлоков остановлен");
     }
 
     private bool CheckForDeadlock()
     {
-        // Получаем текущее состояние стола
         var philosophers = _tableManager.GetAllPhilosophers();
         var forks = _tableManager.GetAllForks();
 
-        // Условия дедлока:
-        // 1. ВСЕ философы в состоянии "Голоден" (Hungry)
         bool allPhilosophersHungry = philosophers.All(p => p.State == PhilosopherState.Hungry);
-
-        // 2. ВСЕ вилки заняты (InUse)
         bool allForksInUse = forks.All(f => f._state == ForkState.InUse);
 
-        // Если оба условия true - у нас дедлок!
         return allPhilosophersHungry && allForksInUse;
+    }
+
+    private async Task ResolveDeadlock()
+    {
+        var philosophers = _tableManager.GetAllPhilosophers().ToList();
+
+        if (philosophers.Count == 0) return;
+
+        // Выбираем случайного философа для "жертвоприношения"
+        var victim = philosophers[_random.Next(philosophers.Count)];
+
+        _logger.LogWarning("Выбираем философа {Philosopher} для разрешения дедлока", victim.Name);
+
+        // Получаем вилки этого философа
+        var (leftForkId, rightForkId) = _tableManager.GetPhilosopherForks(victim.Name);
+
+        // Заставляем отпустить левую вилку (или обе)
+        _logger.LogInformation("Философ {Philosopher} принудительно отпускает вилки {LeftFork} и {RightFork}",
+            victim.Name, leftForkId, rightForkId);
+
+        // Отпускаем вилки через TableManager
+        _tableManager.ReleaseFork(leftForkId, victim.Name);
+        _tableManager.ReleaseFork(rightForkId, victim.Name);
+
+        // Даем время другим философам взять вилки
+        await Task.Delay(100);
+
+        _logger.LogInformation("Дедлок разрешен! Философ {Philosopher} освободил вилки", victim.Name);
     }
 }
