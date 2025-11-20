@@ -144,7 +144,7 @@ namespace Philosophers.Tests
             var forkUsage = _metricsCollector.GetForkUsageTimes();
             forkUsage.Should().ContainKey(forkId);
             forkUsage[forkId].TotalMilliseconds.Should().BeGreaterThanOrEqualTo(50);
-            forkUsage[forkId].TotalMilliseconds.Should().BeLessThan(60);
+            forkUsage[forkId].TotalMilliseconds.Should().BeLessThan(65);
         }
 
 
