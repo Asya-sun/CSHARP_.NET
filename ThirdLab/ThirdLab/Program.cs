@@ -1,0 +1,54 @@
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Philosophers.Core.Models;
+using Philosophers.Services;
+using Philosophers.Core.Interfaces;
+using Philosophers.Strategies;
+using Philosophers.Services.Philosophers;
+using System.Text;
+using System.IO;
+
+// For supporting Russian
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
+
+//// Перенаправляем консольный вывод в файл
+//var fileWriter = new StreamWriter("debug1.log") { AutoFlush = true };
+//Console.SetOut(fileWriter);
+//Console.SetError(fileWriter);
+
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((context, services) =>
+    {
+        // Конфигурация
+        services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
+
+        // Основные сервисы
+        services.AddSingleton<ITableManager, TableManager>();
+        services.AddSingleton<IMetricsCollector, MetricsCollector>();
+        services.AddSingleton<IPhilosopherStrategy, LeftRightStrategy>();
+
+        // Сервис отображения
+        services.AddHostedService<DisplayService>();
+
+        // Философы
+        services.AddHostedService<Plato>();
+        services.AddHostedService<Aristotle>();
+        services.AddHostedService<Socrates>();
+        services.AddHostedService<Decartes>();
+        services.AddHostedService<Kant>();
+
+        // Сервис для управления временем симуляции
+        services.AddHostedService<SimulationHostedService>();
+    })
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+    })
+    .Build();
+
+await host.RunAsync();
