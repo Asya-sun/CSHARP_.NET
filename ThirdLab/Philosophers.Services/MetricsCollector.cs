@@ -178,4 +178,38 @@ public class MetricsCollector : IMetricsCollector
             sb.AppendLine($"║     Свободна:     {freeTime,6:F2}%");
         }
     }
+
+    public IReadOnlyDictionary<string, int> GetEatCounts()
+    {
+        return new Dictionary<string, int>(_eatCount);
+    }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetWaitingTimes()
+    {
+        return _waitingTimes.ToDictionary(
+            x => x.Key,
+            x => (IReadOnlyList<TimeSpan>)x.Value.ToList()
+        );
+    }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetThinkingTimes()
+    {
+        return _thinkingTimes.ToDictionary(
+            x => x.Key,
+            x => (IReadOnlyList<TimeSpan>)x.Value.ToList()
+        );
+    }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetEatingTimes()
+    {
+        return _eatingTimes.ToDictionary(
+            x => x.Key,
+            x => (IReadOnlyList<TimeSpan>)x.Value.ToList()
+        );
+    }
+
+    public IReadOnlyDictionary<int, TimeSpan> GetForkUsageTimes()
+    {
+        return new Dictionary<int, TimeSpan>(_forkTotalUsage);
+    }
 }

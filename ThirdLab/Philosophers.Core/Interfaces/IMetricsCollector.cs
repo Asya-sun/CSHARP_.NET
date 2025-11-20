@@ -20,5 +20,12 @@ namespace Philosophers.Core.Interfaces
 
         void PrintMetrics();
         int GetEatCount(string philosopherName);
+
+        // for tests
+        IReadOnlyDictionary<string, int> GetEatCounts();
+        IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetWaitingTimes();
+        IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetThinkingTimes();
+        IReadOnlyDictionary<string, IReadOnlyList<TimeSpan>> GetEatingTimes();
+        IReadOnlyDictionary<int, TimeSpan> GetForkUsageTimes();
     }
 }
