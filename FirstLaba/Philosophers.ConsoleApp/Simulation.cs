@@ -17,11 +17,13 @@ namespace Philosophers.Core
         private List<Fork> _forks = new();
         private int _totalSteps = 0;
         private readonly SimulationMetrics _metrics = new();
-        private int _deadlockDetected = 0;
+        private int _deadlockDetectedNumber = 0;
         // maybe would be better ???
         // private ICoordinator _coordinator = null!;
         private ICoordinator? _coordinator;
         private readonly IStrategyFactory _strategyFactory;
+        private bool _inDeadlockNow = false;
+
 
         public Simulation(IStrategyFactory strategyFactory)
         {
@@ -145,9 +147,11 @@ namespace Philosophers.Core
                 // надо вообще?
                 if (CheckForDeadlock())
                 {
-                    _deadlockDetected++;
+                    _deadlockDetectedNumber++;
                     Console.WriteLine($"DEADLOCK обнаружен на шаге {step}");
                     // Нужка ли логика восстановления?
+                    _inDeadlockNow = true;
+                    return;
                 }
 
                 if (step % progressStep == 0)
@@ -156,8 +160,11 @@ namespace Philosophers.Core
                 }
 
             }
+
+            return;
         }
 
+        // лучше выносить в отдельную зависимость / интерфейс
         private bool CheckForDeadlock()
         {
             // Deadlock: все философы голодны и держат по одной вилке
@@ -229,7 +236,7 @@ namespace Philosophers.Core
             // Общая статистика
             Console.WriteLine($"\nОБЩАЯ СТАТИСТИКА:");
             Console.WriteLine($"Всего шагов симуляции: {_metrics.TotalSteps}");
-            Console.WriteLine($"Обнаружено deadlock'ов: {_deadlockDetected}");
+            Console.WriteLine($"Обнаружено deadlock'ов: {_deadlockDetectedNumber}");
             Console.WriteLine($"Всего приемов пищи: {_metrics.TotalEatCount}");
             Console.WriteLine($"Общая пропускная способность: {_metrics.AverageThroughput:F2} еды/1000 шагов");
 
@@ -260,8 +267,9 @@ namespace Philosophers.Core
             {
                 Console.WriteLine($"Вилка-{forkMetrics.Key + 1,-2}: " +
                     $"свободна {forkMetrics.Value.AvailabilityRate,5:F1}%, " +
-                    $"используется {forkMetrics.Value.UtilizationRate,5:F1}%, " +
-                    $"заблокирована {100 - forkMetrics.Value.AvailabilityRate - forkMetrics.Value.UtilizationRate,5:F1}%");
+                    $"используется {forkMetrics.Value.UtilizationRate,5:F1}%, " 
+                    //$"заблокирована {100 - forkMetrics.Value.AvailabilityRate - forkMetrics.Value.UtilizationRate,5:F1}%"
+                    );
             }
 
             // Итоговый Score
@@ -271,6 +279,11 @@ namespace Philosophers.Core
 
         public void PrintResults()
         {
+            if (_inDeadlockNow)
+            {
+                Console.WriteLine($"DEADLOCK now; do you really need metrics?");
+                return;
+            }
             CalculateFinalMetrics();
             PrintMetrics();
         }
