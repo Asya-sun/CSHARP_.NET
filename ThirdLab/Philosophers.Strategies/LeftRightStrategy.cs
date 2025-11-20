@@ -20,6 +20,8 @@ public class LeftRightStrategy : IPhilosopherStrategy
 
     public async Task<bool> TryAcquireForksAsync(string philosopherName, ITableManager tableManager, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (leftForkId, rightForkId) = tableManager.GetPhilosopherForks(philosopherName);
 
         _logger.LogDebug("Философ {Philosopher} пытается взять левую вилку {LeftFork}", philosopherName, leftForkId);
