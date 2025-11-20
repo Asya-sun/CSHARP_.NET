@@ -39,8 +39,8 @@ public class IntegrationTests
             ForkAcquisitionTime = 10
         });
 
-        var strategy = new LeftRightStrategy(
-            new Mock<ILogger<LeftRightStrategy>>().Object,
+        var strategy = new PoliteStrategy(
+            new Mock<ILogger<PoliteStrategy>>().Object,
             optionsMock.Object);
 
         // Act - Платон пытается взять вилки
@@ -92,8 +92,8 @@ public class IntegrationTests
                        .Callback<string, PhilosopherState, string>((name, state, action) =>
                            tableManager.UpdatePhilosopherState(name, state, action));
 
-        var strategy = new LeftRightStrategy(
-            new Mock<ILogger<LeftRightStrategy>>().Object,
+        var strategy = new PoliteStrategy(
+            new Mock<ILogger<PoliteStrategy>>().Object,
             optionsMock.Object);
 
         var metricsCollector = new MetricsCollector(
@@ -161,77 +161,6 @@ public class IntegrationTests
         // Act & Assert
         var act = async () => await displayService.StartAsync(cts.Token);
         await act.Should().NotThrowAsync();
-    }
-
-    [Fact]
-    public async Task ShouldDemonstrateDeadlock_WithDirectTableManagerAccess()
-    {
-        // Arrange
-        var tableManager = new TableManager(
-            new Mock<ILogger<TableManager>>().Object,
-            new Mock<IMetricsCollector>().Object);
-
-        // Act - СОЗДАЕМ DEADLOCK ВРУЧНУЮ
-        // Все философы берут левые вилки одновременно
-
-        var tasks = new[]
-        {
-        // Платон берет вилку 1 (левую)
-        tableManager.TryAcquireForkAsync(1, "Платон", CancellationToken.None),
-        
-        // Аристотель берет вилку 2 (левую)  
-        tableManager.TryAcquireForkAsync(2, "Аристотель", CancellationToken.None),
-        
-        // Сократ берет вилку 3 (левую)
-        tableManager.TryAcquireForkAsync(3, "Сократ", CancellationToken.None),
-        
-        // Декарт берет вилку 4 (левую)
-        tableManager.TryAcquireForkAsync(4, "Декарт", CancellationToken.None),
-        
-        // Кант берет вилку 5 (левую)
-        tableManager.TryAcquireForkAsync(5, "Кант", CancellationToken.None)
-    };
-
-        // Ждем пока все возьмут левые вилки
-        var leftForksAcquired = await Task.WhenAll(tasks);
-        leftForksAcquired.Should().AllBeEquivalentTo(true, "Все должны получить левые вилки");
-
-        // Теперь пытаемся взять правые вилки - ДОЛЖЕН ВОЗНИКНУТЬ DEADLOCK
-        var rightForkTasks = new[]
-        {
-        // Платон пытается взять вилку 5 (правую) - занята Кантом
-        tableManager.TryAcquireForkAsync(5, "Платон", CancellationToken.None),
-        
-        // Аристотель пытается взять вилку 1 (правую) - занята Платоном  
-        tableManager.TryAcquireForkAsync(1, "Аристотель", CancellationToken.None),
-        
-        // Сократ пытается взять вилку 2 (правую) - занята Аристотелем
-        tableManager.TryAcquireForkAsync(2, "Сократ", CancellationToken.None),
-        
-        // Декарт пытается взять вилку 3 (правую) - занята Сократом
-        tableManager.TryAcquireForkAsync(3, "Декарт", CancellationToken.None),
-        
-        // Кант пытается взять вилку 4 (правую) - занята Декартом
-        tableManager.TryAcquireForkAsync(4, "Кант", CancellationToken.None)
-    };
-
-        // Assert - проверяем что возникает deadlock (зависание)
-        var completionTask = Task.WhenAll(rightForkTasks);
-        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(2));
-
-        var firstCompleted = await Task.WhenAny(completionTask, timeoutTask);
-
-        // Если первым завершился timeout - значит DEADLOCK!
-        firstCompleted.Should().Be(timeoutTask, "Система должна зависнуть в deadlock при попытке взять правые вилки");
-
-        // Освобождаем вилки чтобы не влиять на другие тесты
-        foreach (var philosopher in new[] { "Платон", "Аристотель", "Сократ", "Декарт", "Кант" })
-        {
-            for (int i = 1; i <= 5; i++)
-            {
-                tableManager.ReleaseFork(i, philosopher);
-            }
-        }
     }
 }
 

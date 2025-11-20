@@ -9,16 +9,16 @@ using Microsoft.Extensions.Options;
 
 namespace Philosophers.Tests;
 
-public class StrategyTests
+public class PoliteStrategyTests
 {
 
-    private readonly Mock<ILogger<LeftRightStrategy>> _loggerMock;
+    private readonly Mock<ILogger<PoliteStrategy>> _loggerMock;
     private readonly Mock<IOptions<SimulationOptions>> _optionsMock;
-    private readonly LeftRightStrategy _strategy;
+    private readonly PoliteStrategy _strategy;
 
-    public StrategyTests()
+    public PoliteStrategyTests()
     {
-        _loggerMock = new Mock<ILogger<LeftRightStrategy>>();
+        _loggerMock = new Mock<ILogger<PoliteStrategy>>();
         _optionsMock = new Mock<IOptions<SimulationOptions>>();
 
         _optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
@@ -26,7 +26,7 @@ public class StrategyTests
             ForkAcquisitionTime = 10 // Короткое время для тестов
         });
 
-        _strategy = new LeftRightStrategy(_loggerMock.Object, _optionsMock.Object);
+        _strategy = new PoliteStrategy(_loggerMock.Object, _optionsMock.Object);
     }
 
    
@@ -159,8 +159,8 @@ public class StrategyTests
             ForkAcquisitionTime = 10
         });
 
-        var strategy = new LeftRightStrategy(
-            new Mock<ILogger<LeftRightStrategy>>().Object,
+        var strategy = new PoliteStrategy(
+            new Mock<ILogger<PoliteStrategy>>().Object,
              optionsMock.Object);
 
         // Act - несколько философов одновременно пытаются взять вилки
@@ -179,45 +179,5 @@ public class StrategyTests
         results.Should().Contain(true);
     }
 
-
-    //[Fact]
-    //public async Task Strategy_ShouldComplete_WithinReasonableTime_NoDeadlock()
-    //{
-    //    // Arrange
-    //    var tableManager = new TableManager(
-    //        new Mock<ILogger<TableManager>>().Object,
-    //        new Mock<IMetricsCollector>().Object);
-
-    //    var optionsMock = new Mock<IOptions<SimulationOptions>>();
-    //    optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
-    //    {
-    //        ForkAcquisitionTime = 10
-    //    });
-
-    //    var strategy = new LeftRightStrategy(
-    //        new Mock<ILogger<LeftRightStrategy>>().Object,
-    //        optionsMock.Object);
-
-    //    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3)); // Таймаут 3 секунды
-
-    //    // Act - все философы пытаются взять вилки
-    //    var tasks = new[]
-    //    {
-    //    strategy.TryAcquireForksAsync("Платон", tableManager, cts.Token),
-    //    strategy.TryAcquireForksAsync("Аристотель", tableManager, cts.Token),
-    //    strategy.TryAcquireForksAsync("Сократ", tableManager, cts.Token),
-    //    strategy.TryAcquireForksAsync("Декарт", tableManager, cts.Token),
-    //    strategy.TryAcquireForksAsync("Кант", tableManager, cts.Token)
-    //};
-
-    //    // Assert - операция должна завершиться ДО таймаута (нет deadlock)
-    //    var completionTask = Task.WhenAll(tasks);
-    //    var completedTask = await Task.WhenAny(completionTask, Task.Delay(5000));
-
-    //    completedTask.Should().Be(completionTask, "Операция не должна зависать в deadlock");
-
-    //    // Если дошли сюда - deadlock нет!
-    //    var results = await completionTask;
-    //    results.Should().Contain(true, "Хотя бы один философ должен получить вилки");
-    //}
+    //Теста на дедлок нет, потому что стратегия этому препятствует
 }

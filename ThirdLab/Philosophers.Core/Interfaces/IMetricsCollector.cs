@@ -14,6 +14,9 @@ namespace Philosophers.Core.Interfaces
         void RecordThinkingTime(string philosopherName, TimeSpan thinkingTime);
         void RecordEatingTime(string philosopherName, TimeSpan eatingTime);
 
+        void RecordDeadlock();
+        int GetDeadlockCount();
+
         // Метрики вилок в реальном времени
         void RecordForkAcquired(int forkId, string philosopherName);
         void RecordForkReleased(int forkId);

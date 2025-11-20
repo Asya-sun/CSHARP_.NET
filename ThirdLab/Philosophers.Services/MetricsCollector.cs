@@ -19,6 +19,7 @@ public class MetricsCollector : IMetricsCollector
     private readonly ConcurrentDictionary<int, TimeSpan> _forkTotalUsage = new();
     private readonly SimulationOptions _options;
 
+    private int _deadlockCount = 0;
     public MetricsCollector(ILogger<MetricsCollector> logger, IOptions<SimulationOptions> options)
     {
         _logger = logger;
@@ -55,6 +56,15 @@ public class MetricsCollector : IMetricsCollector
         bag.Add(eatingTime);
     }
 
+    public void RecordDeadlock()
+    {
+        // Увеличиваем счетчик дедлоков
+        Interlocked.Increment(ref _deadlockCount);
+
+        // Можно также логировать или сохранять время последнего дедлока
+        _logger.LogWarning("Зафиксирован дедлок #{DeadlockCount}", _deadlockCount);
+    }
+
     // ВИЛКИ: запись когда вилка берется
     public void RecordForkAcquired(int forkId, string philosopherName)
     {
@@ -89,10 +99,26 @@ public class MetricsCollector : IMetricsCollector
         PrintWaitingTimeMetrics(sb);
         sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
         PrintForkUtilizationMetrics(sb);
-
+        sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
+        PrintDeadlockMetrics(sb); // ДОБАВЛЯЕМ метрики по дедлокам
         sb.AppendLine("╚══════════════════════════════════════════════════════════════════════╝");
 
         _logger.LogInformation("{Metrics}", sb.ToString());
+    }
+
+    private void PrintDeadlockMetrics(StringBuilder sb)
+    {
+        sb.AppendLine("║ ДЕДЛОКИ:");
+        if (_deadlockCount > 0)
+        {
+            sb.AppendLine($"║   🚨 Обнаружено дедлоков: {_deadlockCount}");
+            double deadlocksPerMinute = _deadlockCount / (_options.DurationSeconds / 60.0);
+            sb.AppendLine($"║   📊 Частота: {deadlocksPerMinute:F2} дедлоков/минуту");
+        }
+        else
+        {
+            sb.AppendLine($"║   ✅ Дедлоков не обнаружено");
+        }
     }
 
     private void PrintThroughputMetrics(StringBuilder sb)
@@ -211,5 +237,10 @@ public class MetricsCollector : IMetricsCollector
     public IReadOnlyDictionary<int, TimeSpan> GetForkUsageTimes()
     {
         return new Dictionary<int, TimeSpan>(_forkTotalUsage);
+    }
+
+    public int GetDeadlockCount()
+    {
+        return _deadlockCount;
     }
 }

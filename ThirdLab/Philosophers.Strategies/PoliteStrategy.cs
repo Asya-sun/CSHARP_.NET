@@ -7,12 +7,12 @@ using System.Text;
 
 namespace Philosophers.Strategies;
 
-public class LeftRightStrategy : IPhilosopherStrategy
+public class PoliteStrategy : IPhilosopherStrategy
 {
-    private readonly ILogger<LeftRightStrategy> _logger;
+    private readonly ILogger<PoliteStrategy> _logger;
     private readonly SimulationOptions _options;
 
-    public LeftRightStrategy(ILogger<LeftRightStrategy> logger, IOptions<SimulationOptions> options)
+    public PoliteStrategy(ILogger<PoliteStrategy> logger, IOptions<SimulationOptions> options)
     {
         _logger = logger;
         _options = options.Value;

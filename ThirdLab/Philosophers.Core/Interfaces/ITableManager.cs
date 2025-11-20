@@ -7,6 +7,7 @@ public interface ITableManager
 {
     // Основные методы для работы с вилками
     Task<bool> TryAcquireForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken);
+    Task<bool> WaitForForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken, int? timeoutMs = null);
     void ReleaseFork(int forkId, string philosopherName);
 
     // Методы для получения состояния

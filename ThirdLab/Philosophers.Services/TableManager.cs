@@ -61,6 +61,47 @@ public class TableManager : ITableManager
         return false;
     }
 
+    public async Task<bool> WaitForForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
+    {
+        if (_forks.TryGetValue(forkId, out var semaphore))
+        {
+            bool acquired;
+
+            if (timeoutMs == null)
+            {
+                // Бесконечное ожидание - используем WaitAsync() без возвращаемого значения
+                await semaphore.WaitAsync(cancellationToken);
+                acquired = true; // Если дошли сюда - значит взяли семафор
+            }
+            else if (timeoutMs == 0)
+            {
+                // Мгновенная проверка
+                acquired = await semaphore.WaitAsync(0, cancellationToken);
+            }
+            else if (timeoutMs > 0)
+            {
+                // Ожидание с таймаутом
+                acquired = await semaphore.WaitAsync(timeoutMs.Value, cancellationToken);
+            }
+            else
+            {
+                throw new ArgumentException("Timeout cannot be negative");
+            }
+
+            if (acquired)
+            {
+                lock (_lockObject)
+                {
+                    _forkOwners[forkId] = philosopherName;
+                }
+                _metricsCollector.RecordForkAcquired(forkId, philosopherName);
+                _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void ReleaseFork(int forkId, string philosopherName)
     {
         if (_forks.TryGetValue(forkId, out var semaphore))
