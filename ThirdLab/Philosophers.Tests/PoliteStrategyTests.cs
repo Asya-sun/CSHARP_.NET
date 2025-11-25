@@ -1,183 +1,119 @@
-﻿//using FluentAssertions;
-//using Microsoft.Extensions.Logging;
-//using Moq;
-//using Philosophers.Core.Interfaces;
-//using Philosophers.Services;
-//using Philosophers.Strategies;
-//using Philosophers.Core.Models;
-//using Microsoft.Extensions.Options;
+﻿using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using Philosophers.Core.Interfaces;
+using Philosophers.Core.Models;
+using Philosophers.Core.Models.Enums;
+using Philosophers.Services;
+using Philosophers.Strategies;
 
-//namespace Philosophers.Tests;
+namespace Philosophers.Tests;
+public class PoliteStrategyTests
+{
+    private TestPhilosopher CreatePhilosopher(out PoliteStrategy strategy, out Mock<ITableManager> tableMock)
+    {
+        tableMock = new Mock<ITableManager>();
+        tableMock.Setup(t => t.GetPhilosopherForks(PhilosopherName.Socrates))
+                 .Returns((0, 1));
+        var metricsMock = new Mock<IMetricsCollector>();
+        var options = Options.Create(new SimulationOptions { ForkAcquisitionTime = 0 });
+        var philosopherLoggerMock = new Mock<ILogger<TestPhilosopher>>();
+        var strategyLoggerMock = new Mock<ILogger<PoliteStrategy>>();
+        strategy = new PoliteStrategy(strategyLoggerMock.Object, options);
 
-//public class PoliteStrategyTests
-//{
+        return new TestPhilosopher(
+            PhilosopherName.Socrates,
+            tableMock.Object,
+            strategy,
+            metricsMock.Object,
+            options,
+            philosopherLoggerMock.Object);
+    }
 
-//    private readonly Mock<ILogger<PoliteStrategy>> _loggerMock;
-//    private readonly Mock<IOptions<SimulationOptions>> _optionsMock;
-//    private readonly PoliteStrategy _strategy;
+    // тестируем, что когда обе вилки доступны, то стратегия получает обе вилки
+    [Fact]
+    public async Task AcquireForks_Success_WhenBothForksAvailable()
+    {
+        // Arrange
+        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
 
-//    public PoliteStrategyTests()
-//    {
-//        _loggerMock = new Mock<ILogger<PoliteStrategy>>();
-//        _optionsMock = new Mock<IOptions<SimulationOptions>>();
+        tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
+                 .Returns((0, 1));
 
-//        _optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
-//        {
-//            ForkAcquisitionTime = 10 // Короткое время для тестов
-//        });
+        tableMock.Setup(t => t.WaitForForkAsync(It.IsAny<int>(),
+                                                philosopher.ExposedName,
+                                                It.IsAny<CancellationToken>(),
+                                                0))
+                 .ReturnsAsync(true);
 
-//        _strategy = new PoliteStrategy(_loggerMock.Object, _optionsMock.Object);
-//    }
+        // Act
+        var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-   
-//    [Fact]
-//    public async Task TryAcquireForksAsync_ShouldAcquireBothForks_WhenBothAvailable()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
+        // Assert
+        Assert.True(result);
 
-//        tableManagerMock.SetupSequence(t => t.TryAcquireForkAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-//                       .ReturnsAsync(true)  // Левая вилка
-//                       .ReturnsAsync(true); // Правая вилка
-
-//        // Act
-//        var result = await _strategy.TryAcquireForksAsync("Платон", tableManagerMock.Object, CancellationToken.None);
-
-//        // Assert
-//        result.Should().BeTrue();
-//        tableManagerMock.Verify(t => t.TryAcquireForkAsync(1, "Платон", It.IsAny<CancellationToken>()), Times.Once);
-//        tableManagerMock.Verify(t => t.TryAcquireForkAsync(5, "Платон", It.IsAny<CancellationToken>()), Times.Once);
-//    }
-
-//    [Fact]
-//    public async Task TryAcquireForksAsync_ShouldFail_WhenLeftForkIsBusy()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
-
-//        // Левая вилка занята
-//        tableManagerMock.Setup(t => t.TryAcquireForkAsync(1, "Платон", It.IsAny<CancellationToken>()))
-//                       .ReturnsAsync(false);
-
-//        // Act
-//        var result = await _strategy.TryAcquireForksAsync("Платон", tableManagerMock.Object, CancellationToken.None);
-
-//        // Assert
-//        result.Should().BeFalse();
-//        tableManagerMock.Verify(t => t.TryAcquireForkAsync(1, "Платон", It.IsAny<CancellationToken>()), Times.Once);
-//        tableManagerMock.Verify(t => t.TryAcquireForkAsync(5, "Платон", It.IsAny<CancellationToken>()), Times.Never);
-//    }
-
-//    [Fact]
-//    public async Task TryAcquireForksAsync_ShouldReleaseLeftFork_WhenRightForkIsBusy()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
-
-//        tableManagerMock.SetupSequence(t => t.TryAcquireForkAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-//                       .ReturnsAsync(true)   // Левая вилка успешно
-//                       .ReturnsAsync(false); // Правая вилка занята
-
-//        // Act
-//        var result = await _strategy.TryAcquireForksAsync("Платон", tableManagerMock.Object, CancellationToken.None);
-
-//        // Assert
-//        result.Should().BeFalse();
-//        // Проверяем что левая вилка была освобождена (откат)
-//        tableManagerMock.Verify(t => t.ReleaseFork(1, "Платон"), Times.Once);
-//    }
-
-//    [Fact]
-//    public async Task TryAcquireForksAsync_ShouldAcquireForksInCorrectOrder_LeftThenRight()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
-
-//        var callOrder = new List<int>();
-//        tableManagerMock.Setup(t => t.TryAcquireForkAsync(1, "Платон", It.IsAny<CancellationToken>()))
-//                       .Callback<int, string, CancellationToken>((id, name, token) => callOrder.Add(id))
-//                       .ReturnsAsync(true);
-//        tableManagerMock.Setup(t => t.TryAcquireForkAsync(5, "Платон", It.IsAny<CancellationToken>()))
-//                       .Callback<int, string, CancellationToken>((id, name, token) => callOrder.Add(id))
-//                       .ReturnsAsync(true);
-
-//        // Act
-//        await _strategy.TryAcquireForksAsync("Платон", tableManagerMock.Object, CancellationToken.None);
-
-//        // Assert
-//        callOrder.Should().ContainInOrder(1, 5); // Сначала левая (1), потом правая (5)
-//    }
-
-//    [Fact]
-//    public void ReleaseForks_ShouldReleaseBothForks()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
-
-//        // Act
-//        _strategy.ReleaseForks("Платон", tableManagerMock.Object);
-
-//        // Assert
-//        tableManagerMock.Verify(t => t.ReleaseFork(1, "Платон"), Times.Once);
-//        tableManagerMock.Verify(t => t.ReleaseFork(5, "Платон"), Times.Once);
-//    }
-
-//    [Fact]
-//    public async Task TryAcquireForksAsync_ShouldRespectCancellationToken()
-//    {
-//        // Arrange
-//        var tableManagerMock = new Mock<ITableManager>();
-//        tableManagerMock.Setup(t => t.GetPhilosopherForks("Платон")).Returns((1, 5));
-
-//        var cts = new CancellationTokenSource();
-//        cts.Cancel(); // Сразу отменяем
+        // проверка, что метод ReleaseFork не был вызван для этого философа
+        tableMock.Verify(t => t.ReleaseFork(It.IsAny<int>(), philosopher.ExposedName), Times.Never);
+    }
 
 
-//        await Assert.ThrowsAsync<OperationCanceledException>(() =>
-//            _strategy.TryAcquireForksAsync("Платон", tableManagerMock.Object, cts.Token));
-        
-//        // Проверяем что не было попыток взять вилки при отмененном токене
-//        tableManagerMock.Verify(t => t.TryAcquireForkAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-//    }
+    // тестирует конкретно TryAcquireForksAsync
+    [Fact]
+    public async Task AcquireForks_Fails_WhenRightForkUnavailable()
+    {
+        // Arrange
+        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
 
-//    [Fact]
-//    public async Task MultiplePhilosophers_ShouldNotDeadlock()
-//    {
-//        // Arrange
-//        var tableManager = new TableManager(
-//            new Mock<ILogger<TableManager>>().Object,
-//            new Mock<IMetricsCollector>().Object);
+        tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
+                 .Returns((0, 1));
 
-//        var optionsMock = new Mock<IOptions<SimulationOptions>>();
-//        optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
-//        {
-//            ForkAcquisitionTime = 10
-//        });
+        // левая доступна
+        tableMock.SetupSequence(t => t.WaitForForkAsync(0, philosopher.ExposedName, It.IsAny<CancellationToken>(), 0))
+                 .ReturnsAsync(true);
 
-//        var strategy = new PoliteStrategy(
-//            new Mock<ILogger<PoliteStrategy>>().Object,
-//             optionsMock.Object);
+        // правая недоступна
+        tableMock.SetupSequence(t => t.WaitForForkAsync(1, philosopher.ExposedName, It.IsAny<CancellationToken>(), 0))
+                 .ReturnsAsync(false);
 
-//        // Act - несколько философов одновременно пытаются взять вилки
-//        var tasks = new[]
-//        {
-//            strategy.TryAcquireForksAsync("Платон", tableManager, CancellationToken.None),
-//            strategy.TryAcquireForksAsync("Аристотель", tableManager, CancellationToken.None),
-//            strategy.TryAcquireForksAsync("Сократ", tableManager, CancellationToken.None)
-//        };
+        // Act
+        var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-//        var results = await Task.WhenAll(tasks);
+        // Assert
+        Assert.False(result);
 
-//        // Assert - хотя бы один должен был получить вилки
-//        // Кто-то должен был поесть
-//        // И не должно быть deadlock (тест завершился)
-//        results.Should().Contain(true);
-//    }
+        // Левую вилку должны отпустить
+        tableMock.Verify(t => t.ReleaseFork(0, philosopher.ExposedName), Times.Once);
 
-//    //Теста на дедлок нет, потому что стратегия этому препятствует
-//}
+        // Правую НЕ отпускаем (мы её не брали)
+        tableMock.Verify(t => t.ReleaseFork(1, philosopher.ExposedName), Times.Never);
+    }
+
+
+
+    // тестирует philosopher.RunOneIteration
+    // state == Hungry → strategy.TryAcquireForksAsync(...)
+    // возможно, этот тест лучше вынести в другой файл...
+    [Fact]
+    public async Task Hungry_FailsToTakeRightFork_ReleasesLeftFork()
+    {
+        // Arrange
+        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+
+        // левая вилка доступна, правая нет
+        tableMock.SetupSequence(t => t.WaitForForkAsync(It.IsAny<int>(), PhilosopherName.Socrates, It.IsAny<CancellationToken>(), 0))
+                 .ReturnsAsync(true)  // левая
+                 .ReturnsAsync(false); // правая
+
+        // T → H
+        await philosopher.RunOneIteration(CancellationToken.None);
+        Assert.Equal(PhilosopherState.Hungry, philosopher.ExposedState);
+
+        // H → H (неудача)
+        await philosopher.RunOneIteration(CancellationToken.None);
+        Assert.Equal(PhilosopherState.Hungry, philosopher.ExposedState);
+
+        // левая должна быть отпущена
+        tableMock.Verify(t => t.ReleaseFork(0, PhilosopherName.Socrates), Times.Once);
+    }
+}

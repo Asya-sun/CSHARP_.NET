@@ -46,6 +46,7 @@ public class TableManager : ITableManager
 
     public async Task<bool> WaitForForkAsync(int forkId, PhilosopherName philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
     {
+        
         if (! _forks.TryGetValue(forkId, out var semaphore))
         {
             return false;
@@ -53,6 +54,8 @@ public class TableManager : ITableManager
         
         bool acquired;
 
+        // в случае если поток был отменен до того, как семафор был доступен,
+        // WaitAsync выбросит OperationCanceledException (и этот метод тоже выкинет исключение)
         if (timeoutMs == null)
         {
             await semaphore.WaitAsync(cancellationToken);

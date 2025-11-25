@@ -62,7 +62,6 @@ public class MetricsCollector : IMetricsCollector
         // Увеличиваем счетчик дедлоков
         Interlocked.Increment(ref _deadlockCount);
 
-        // Можно также логировать или сохранять время последнего дедлока
         _logger.LogWarning("Зафиксирован дедлок #{DeadlockCount}", _deadlockCount);
     }
 
