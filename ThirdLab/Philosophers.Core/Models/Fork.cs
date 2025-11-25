@@ -6,7 +6,7 @@ public class Fork
 {
     public int _id { get; set; }
     public ForkState _state { get; set; }
-    public string? _usedBy { get; set; }
+    public PhilosopherName? _usedBy { get; set; }
 
     public Fork(int id)
     {

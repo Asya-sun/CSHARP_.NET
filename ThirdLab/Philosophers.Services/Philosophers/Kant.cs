@@ -14,7 +14,7 @@ public class Kant : PhilosopherHostedService
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
         ILogger<Kant> logger)
-        : base("Кант", tableManager, strategy, metricsCollector, options, logger)
+        : base(PhilosopherName.Kant, tableManager, strategy, metricsCollector, options, logger)
     {
     }
 }

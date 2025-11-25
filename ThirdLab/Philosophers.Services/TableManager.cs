@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
+using Philosophers.Core;
 using Philosophers.Core.Models.Enums;
 using System.Diagnostics;
 
@@ -9,8 +10,8 @@ namespace Philosophers.Services;
 public class TableManager : ITableManager
 {
     private readonly Dictionary<int, SemaphoreSlim> _forks;
-    private readonly Dictionary<int, string> _forkOwners;
-    private readonly Dictionary<string, Philosopher> _philosophers;
+    private readonly Dictionary<int, PhilosopherName> _forkOwners;
+    private readonly Dictionary<PhilosopherName, Philosopher> _philosophers;
     private readonly object _lockObject = new object();
     private readonly ILogger<TableManager> _logger;
     private readonly IMetricsCollector _metricsCollector;
@@ -29,21 +30,21 @@ public class TableManager : ITableManager
             [4] = new SemaphoreSlim(1, 1),
             [5] = new SemaphoreSlim(1, 1)
         };
-        _forkOwners = new Dictionary<int, string>();
+        _forkOwners = new Dictionary<int, PhilosopherName>();
 
 
-        _philosophers = new Dictionary<string, Philosopher>
+        _philosophers = new Dictionary<PhilosopherName, Philosopher>
         {
-            ["Платон"] = new Philosopher("Платон"),
-            ["Аристотель"] = new Philosopher("Аристотель"),
-            ["Сократ"] = new Philosopher("Сократ"),
-            ["Декарт"] = new Philosopher("Декарт"),
-            ["Кант"] = new Philosopher("Кант")
+            [PhilosopherName.Plato] = new Philosopher(PhilosopherName.Plato),
+            [PhilosopherName.Kant] = new Philosopher(PhilosopherName.Kant),
+            [PhilosopherName.Aristotle] = new Philosopher(PhilosopherName.Aristotle),
+            [PhilosopherName.Decartes] = new Philosopher(PhilosopherName.Decartes),
+            [PhilosopherName.Socrates] = new Philosopher(PhilosopherName.Socrates)
         };
     }
 
 
-    public async Task<bool> WaitForForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
+    public async Task<bool> WaitForForkAsync(int forkId, PhilosopherName philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
     {
         if (! _forks.TryGetValue(forkId, out var semaphore))
         {
@@ -84,7 +85,7 @@ public class TableManager : ITableManager
         return false;        
     }
 
-    public void ReleaseFork(int forkId, string philosopherName)
+    public void ReleaseFork(int forkId, PhilosopherName philosopherName)
     {
         if (_forks.TryGetValue(forkId, out var semaphore))
         {
@@ -109,7 +110,7 @@ public class TableManager : ITableManager
         }
     }
 
-    public string? GetForkOwner(int forkId)
+    public PhilosopherName? GetForkOwner(int forkId)
     {
         lock (_lockObject)
         {
@@ -117,16 +118,18 @@ public class TableManager : ITableManager
         }
     }
 
-    public (int leftForkId, int rightForkId) GetPhilosopherForks(string philosopherName)
+    public (int leftForkId, int rightForkId) GetPhilosopherForks(PhilosopherName philosopherName)
     {
         return philosopherName switch
         {
-            "Платон" => (1, 5),
-            "Аристотель" => (2, 1),
-            "Сократ" => (3, 2),
-            "Декарт" => (4, 3),
-            "Кант" => (5, 4),
-            _ => throw new ArgumentException($"Unknown philosopher: {philosopherName}")
+
+
+            PhilosopherName.Plato => (1, 5),
+            PhilosopherName.Aristotle => (2, 1),
+            PhilosopherName.Socrates => (3, 2),
+            PhilosopherName.Decartes => (4, 3),
+            PhilosopherName.Kant => (5, 4),
+            _ => throw new ArgumentException($"Unknown philosopher: {PhilosopherExtensions.ToName(philosopherName)}")
         };
     }
 
@@ -145,14 +148,14 @@ public class TableManager : ITableManager
         return forks;
     }
 
-    public (ForkState left, ForkState right) GetAdjacentForksState(string philosopherName)
+    public (ForkState left, ForkState right) GetAdjacentForksState(PhilosopherName philosopherName)
     {
         var (leftForkId, rightForkId) = GetPhilosopherForks(philosopherName);
         return (GetForkState(leftForkId), GetForkState(rightForkId));
     }
 
 
-    public void UpdatePhilosopherState(string name, PhilosopherState state, string action = "None")
+    public void UpdatePhilosopherState(PhilosopherName name, PhilosopherState state, string action = "None")
     {
         lock (_lockObject)
         {

@@ -14,7 +14,7 @@ public class Plato : PhilosopherHostedService
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
         ILogger<Plato> logger)
-        : base("Платон", tableManager, strategy, metricsCollector, options, logger)
+        : base(PhilosopherName.Plato, tableManager, strategy, metricsCollector, options, logger)
     {
     }
 }
