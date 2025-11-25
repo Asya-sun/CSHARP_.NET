@@ -13,9 +13,9 @@ public class TableManager : ITableManager
     private readonly Dictionary<string, Philosopher> _philosophers;
     private readonly object _lockObject = new object();
     private readonly ILogger<TableManager> _logger;
-    private readonly IMetricsCollector _metricsCollector; // ← ДОБАВЛЯЕМ
+    private readonly IMetricsCollector _metricsCollector;
 
-    public TableManager(ILogger<TableManager> logger, IMetricsCollector metricsCollector) // ← ДОБАВЛЯЕМ
+    public TableManager(ILogger<TableManager> logger, IMetricsCollector metricsCollector)
     {
         _logger = logger;
         _metricsCollector = metricsCollector;
@@ -42,65 +42,46 @@ public class TableManager : ITableManager
         };
     }
 
-    //public async Task<bool> TryAcquireForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken)
-    //{
-    //    if (_forks.TryGetValue(forkId, out var semaphore))
-    //    {
-    //        var acquired = await semaphore.WaitAsync(0, cancellationToken);
-    //        if (acquired)
-    //        {
-    //            lock (_lockObject)
-    //            {
-    //                _forkOwners[forkId] = philosopherName;
-    //            }
-    //            _metricsCollector.RecordForkAcquired(forkId, philosopherName); // ← ЗАПИСЫВАЕМ МЕТРИКУ
-    //            _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
-    //            return true;
-    //        }
-    //    }
-    //    return false;
-    //}
 
     public async Task<bool> WaitForForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
     {
-        // инвертировать if
-        if (_forks.TryGetValue(forkId, out var semaphore))
+        if (! _forks.TryGetValue(forkId, out var semaphore))
         {
-            bool acquired;
-
-            if (timeoutMs == null)
-            {
-                // Бесконечное ожидание - используем WaitAsync() без возвращаемого значения
-                await semaphore.WaitAsync(cancellationToken);
-                acquired = true; // Если дошли сюда - значит взяли семафор
-            }
-            else if (timeoutMs == 0)
-            {
-                // Мгновенная проверка
-                acquired = await semaphore.WaitAsync(0, cancellationToken);
-            }
-            else if (timeoutMs > 0)
-            {
-                // Ожидание с таймаутом
-                acquired = await semaphore.WaitAsync(timeoutMs.Value, cancellationToken);
-            }
-            else
-            {
-                throw new ArgumentException("Timeout cannot be negative");
-            }
-
-            if (acquired)
-            {
-                lock (_lockObject)
-                {
-                    _forkOwners[forkId] = philosopherName;
-                }
-                _metricsCollector.RecordForkAcquired(forkId, philosopherName);
-                _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
-                return true;
-            }
+            return false;
         }
-        return false;
+        
+        bool acquired;
+
+        if (timeoutMs == null)
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            // Если дошли сюда - значит взяли семафор
+            acquired = true; 
+        }
+        else if (timeoutMs == 0)
+        {
+            acquired = await semaphore.WaitAsync(0, cancellationToken);
+        }
+        else if (timeoutMs > 0)
+        {
+            acquired = await semaphore.WaitAsync(timeoutMs.Value, cancellationToken);
+        }
+        else
+        {
+            throw new ArgumentException("Timeout cannot be negative");
+        }
+
+        if (acquired)
+        {
+            lock (_lockObject)
+            {
+                _forkOwners[forkId] = philosopherName;
+            }
+            _metricsCollector.RecordForkAcquired(forkId, philosopherName);
+            _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
+            return true;
+        }
+        return false;        
     }
 
     public void ReleaseFork(int forkId, string philosopherName)
@@ -113,14 +94,13 @@ public class TableManager : ITableManager
                 {
                     _forkOwners.Remove(forkId);
                     semaphore.Release();
-                    _metricsCollector.RecordForkReleased(forkId); // ← ЗАПИСЫВАЕМ МЕТРИКУ
+                    _metricsCollector.RecordForkReleased(forkId);
                     _logger.LogDebug("Философ {Philosopher} положил вилку {ForkId}", philosopherName, forkId);
                 }
             }
         }
     }
 
-    // Остальные методы остаются без изменений
     public ForkState GetForkState(int forkId)
     {
         lock (_lockObject)
