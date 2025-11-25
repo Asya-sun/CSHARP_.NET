@@ -42,27 +42,28 @@ public class TableManager : ITableManager
         };
     }
 
-    public async Task<bool> TryAcquireForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken)
-    {
-        if (_forks.TryGetValue(forkId, out var semaphore))
-        {
-            var acquired = await semaphore.WaitAsync(0, cancellationToken);
-            if (acquired)
-            {
-                lock (_lockObject)
-                {
-                    _forkOwners[forkId] = philosopherName;
-                }
-                _metricsCollector.RecordForkAcquired(forkId, philosopherName); // ← ЗАПИСЫВАЕМ МЕТРИКУ
-                _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
-                return true;
-            }
-        }
-        return false;
-    }
+    //public async Task<bool> TryAcquireForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken)
+    //{
+    //    if (_forks.TryGetValue(forkId, out var semaphore))
+    //    {
+    //        var acquired = await semaphore.WaitAsync(0, cancellationToken);
+    //        if (acquired)
+    //        {
+    //            lock (_lockObject)
+    //            {
+    //                _forkOwners[forkId] = philosopherName;
+    //            }
+    //            _metricsCollector.RecordForkAcquired(forkId, philosopherName); // ← ЗАПИСЫВАЕМ МЕТРИКУ
+    //            _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
+    //            return true;
+    //        }
+    //    }
+    //    return false;
+    //}
 
     public async Task<bool> WaitForForkAsync(int forkId, string philosopherName, CancellationToken cancellationToken, int? timeoutMs = null)
     {
+        // инвертировать if
         if (_forks.TryGetValue(forkId, out var semaphore))
         {
             bool acquired;

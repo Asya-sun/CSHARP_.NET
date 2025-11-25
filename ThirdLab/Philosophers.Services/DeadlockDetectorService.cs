@@ -36,7 +36,7 @@ public class DeadlockDetector : BackgroundService
 
                 if (CheckForDeadlock())
                 {
-                    _logger.LogWarning("ОБНАРУЖЕН ДЕДЛОК! Все философы голодны и все вилки заняты");
+                    _logger.LogWarning("ДЕДЛОК! Все философы голодны и все вилки заняты");
                     _metricsCollector.RecordDeadlock();
 
                     // СПАСАЕМ СИТУАЦИЮ - заставляем философа отпустить вилки
@@ -56,7 +56,7 @@ public class DeadlockDetector : BackgroundService
         _logger.LogInformation("Детектор дедлоков остановлен");
     }
 
-    private bool CheckForDeadlock()
+    internal bool CheckForDeadlock()
     {
         var philosophers = _tableManager.GetAllPhilosophers();
         var forks = _tableManager.GetAllForks();

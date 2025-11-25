@@ -25,7 +25,7 @@ public class StupidStrategy : IPhilosopherStrategy
         _logger.LogDebug("Философ {Philosopher} ТУПО берет левую вилку {LeftFork} (и не отпустит!)",
             philosopherName, leftForkId);
 
-        // ТУПАЯ ЛОГИКА 1: Берем левую вилку БЕСКОНЕЧНЫМ ожиданием
+        // бесконечное ожидание на левой вилке
         bool leftAcquired = await tableManager.WaitForForkAsync(leftForkId, philosopherName, cancellationToken);
         if (!leftAcquired)
         {
@@ -36,11 +36,10 @@ public class StupidStrategy : IPhilosopherStrategy
         // Имитируем время взятия вилки
         await Task.Delay(_options.ForkAcquisitionTime, cancellationToken);
 
-        _logger.LogDebug("Философ {Philosopher} взял левую, ТУПО ждет правую {RightFork} ВЕЧНО...",
+        _logger.LogDebug("Философ {Philosopher} взял левую, ждет правую {RightFork}",
             philosopherName, rightForkId);
 
-        // ТУПАЯ ЛОГИКА 2: Ждем правую вилку тоже БЕСКОНЕЧНО
-        // ЭТО 100% ПРИВЕДЕТ К ДЕДЛОКУ КОГДА ВСЕ ФИЛОСОФЫ ВОЗЬМУТ ЛЕВЫЕ ВИЛКИ!
+        // бесконечное ожидание на правой вилке
         bool rightAcquired = await tableManager.WaitForForkAsync(rightForkId, philosopherName, cancellationToken);
 
         if (!rightAcquired)
@@ -66,6 +65,6 @@ public class StupidStrategy : IPhilosopherStrategy
         tableManager.ReleaseFork(leftForkId, philosopherName);
         tableManager.ReleaseFork(rightForkId, philosopherName);
 
-        _logger.LogDebug("Философ {Philosopher} ТУПО положил вилки", philosopherName);
+        _logger.LogDebug("Философ {Philosopher} положил вилки", philosopherName);
     }
 }

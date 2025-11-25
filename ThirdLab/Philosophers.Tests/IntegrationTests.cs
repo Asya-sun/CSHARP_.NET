@@ -24,9 +24,35 @@ public class IntegrationTests
         _output = output;
     }
 
-    // +
+
+    // NO STRATEGY USED
     [Fact]
-    public async Task TableManagerAndStrategy_ShouldWorkTogether()
+    public async Task DisplayService_ShouldWorkWithoutErrors()
+    {
+        // Arrange
+        var tableManagerMock = new Mock<ITableManager>();
+        var metricsCollectorMock = new Mock<IMetricsCollector>();
+        var optionsMock = new Mock<IOptions<SimulationOptions>>();
+        var loggerMock = new Mock<ILogger<DisplayService>>();
+
+        optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
+        {
+            DisplayUpdateInterval = 10
+        });
+
+        var displayService = new DisplayService(
+            tableManagerMock.Object, metricsCollectorMock.Object, optionsMock.Object, loggerMock.Object);
+
+        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        // Act & Assert
+        var act = async () => await displayService.StartAsync(cts.Token);
+        await act.Should().NotThrowAsync();
+    }
+
+    
+    [Fact]
+    public async Task TableManagerAndPoliteStrategy_ShouldWorkTogether()
     {
         // Arrange
         var tableManager = new TableManager(
@@ -55,7 +81,7 @@ public class IntegrationTests
 
     //+
     [Fact]
-    public async Task PhilosopherLifecycle_ShouldCompleteFullCycle_WithRealComponents()
+    public async Task PolitePhilosopherLifecycle_ShouldCompleteFullCycle_WithRealComponents()
     {
         // Arrange - используем реальные компоненты (кроме логгера)
         var loggerMock = new Mock<ILogger<PhilosopherHostedService>>();
@@ -136,32 +162,59 @@ public class IntegrationTests
     }
 
 
-    
-
-    // мб в тесты для display service - ??
     [Fact]
-    public async Task DisplayService_ShouldWorkWithoutErrors()
+    public async Task DeadlockDetector_ShouldDetectDeadlock_WithStupidStrategy()
     {
         // Arrange
-        var tableManagerMock = new Mock<ITableManager>();
-        var metricsCollectorMock = new Mock<IMetricsCollector>();
-        var optionsMock = new Mock<IOptions<SimulationOptions>>();
-        var loggerMock = new Mock<ILogger<DisplayService>>();
+        var metricsCollector = new Mock<IMetricsCollector>();
+        var loggerMock = new Mock<ILogger<DeadlockDetector>>();
 
-        optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
+        var tableManager = new TableManager(
+            new Mock<ILogger<TableManager>>().Object,
+            metricsCollector.Object);
+
+        var deadlockDetector = new DeadlockDetector(tableManager, loggerMock.Object, metricsCollector.Object);
+
+        // Act: Создаем дедлок вручную через TableManager
+        // Вместо использования StupidStrategy, напрямую занимаем все вилки
+
+        // Занимаем ВСЕ вилки разными философами
+        await tableManager.WaitForForkAsync(1, "Платон", CancellationToken.None, 100);
+        await tableManager.WaitForForkAsync(2, "Аристотель", CancellationToken.None, 100);
+        await tableManager.WaitForForkAsync(3, "Сократ", CancellationToken.None, 100);
+        await tableManager.WaitForForkAsync(4, "Декарт", CancellationToken.None, 100);
+        await tableManager.WaitForForkAsync(5, "Кант", CancellationToken.None, 100);
+
+        // Обновляем состояние всех философов на Hungry
+        tableManager.UpdatePhilosopherState("Платон", PhilosopherState.Hungry);
+        tableManager.UpdatePhilosopherState("Аристотель", PhilosopherState.Hungry);
+        tableManager.UpdatePhilosopherState("Сократ", PhilosopherState.Hungry);
+        tableManager.UpdatePhilosopherState("Декарт", PhilosopherState.Hungry);
+        tableManager.UpdatePhilosopherState("Кант", PhilosopherState.Hungry);
+
+        // Act: Проверяем наличие дедлока
+        var hasDeadlock = deadlockDetector.CheckForDeadlock();
+
+        // Assert
+        hasDeadlock.Should().BeTrue("потому что все философы в состоянии Hungry и все вилки заняты");
+
+        // Проверяем что все вилки действительно заняты
+        for (int i = 1; i <= 5; i++)
         {
-            DisplayUpdateInterval = 10
-        });
+            tableManager.GetForkState(i).Should().Be(ForkState.InUse, $"вилка {i} должна быть занята");
+        }
 
-        var displayService = new DisplayService(
-            tableManagerMock.Object, metricsCollectorMock.Object, optionsMock.Object, loggerMock.Object);
-
-        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-
-        // Act & Assert
-        var act = async () => await displayService.StartAsync(cts.Token);
-        await act.Should().NotThrowAsync();
+        // Освобождаем вилки
+        tableManager.ReleaseFork(1, "Платон");
+        tableManager.ReleaseFork(2, "Аристотель");
+        tableManager.ReleaseFork(3, "Сократ");
+        tableManager.ReleaseFork(4, "Декарт");
+        tableManager.ReleaseFork(5, "Кант");
     }
+
+
+
+
 }
 
 // Test класс для философа чтобы можно было тестировать
