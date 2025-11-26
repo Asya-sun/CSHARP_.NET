@@ -116,7 +116,6 @@ public class MetricsCollectorTests
 
         // Act
         metricsCollector.RecordForkAcquired(forkId, philosopher);
-        // Имитируем использование вилки
         Thread.Sleep(50);
         metricsCollector.RecordForkReleased(forkId);
 
