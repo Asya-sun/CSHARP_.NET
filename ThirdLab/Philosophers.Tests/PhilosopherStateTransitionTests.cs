@@ -20,12 +20,11 @@ public class PhilosopherStateTransitionTests
      * и это может привести к "setup already exists" и тд
      * Поэтому проще просто каждый раз моки создавать
      */
-    private TestPhilosopher CreatePhilosopher(
-        out Mock<IPhilosopherStrategy> strategyMock,
+    private (TestPhilosopher testPhilosopher, Mock<IPhilosopherStrategy> strategyMock) CreatePhilosopher(
         bool tryAcquireForksResult)
     {
         var tableMock = new Mock<ITableManager>();
-        strategyMock = new Mock<IPhilosopherStrategy>();
+        var strategyMock = new Mock<IPhilosopherStrategy>();
         var metricsMock = new Mock<IMetricsCollector>();
         var options = Options.Create(new SimulationOptions());
 
@@ -38,13 +37,15 @@ public class PhilosopherStateTransitionTests
 
         var logger = new Mock<ILogger<TestPhilosopher>>();
 
-        return new TestPhilosopher(
+        var testPhilosopher = new TestPhilosopher(
             PhilosopherName.Socrates,
             tableMock.Object,
             strategyMock.Object,
             metricsMock.Object,
             options,
             logger.Object);
+
+        return (testPhilosopher, strategyMock);
     }
 
 
@@ -53,7 +54,7 @@ public class PhilosopherStateTransitionTests
     public async Task Thinking_To_Hungry()
     {
         // arrange
-        var philosopher = CreatePhilosopher(out _, tryAcquireForksResult: true);
+        var (philosopher, _) = CreatePhilosopher(tryAcquireForksResult: true);
 
         // act
         await philosopher.RunOneIteration(CancellationToken.None);
@@ -65,7 +66,7 @@ public class PhilosopherStateTransitionTests
     [Fact]
     public async Task Hungry_To_Eating_When_Forks_Available()
     {
-        var philosopher = CreatePhilosopher(out _, tryAcquireForksResult: true);
+        var (philosopher, _) = CreatePhilosopher(tryAcquireForksResult: true);
 
         // переход в Hungry
         await philosopher.RunOneIteration(CancellationToken.None);
@@ -79,7 +80,7 @@ public class PhilosopherStateTransitionTests
     [Fact]
     public async Task Hungry_Stays_Hungry_When_Forks_Not_Available()
     {
-        var philosopher = CreatePhilosopher(out var strategy, tryAcquireForksResult: false);
+        var (philosopher, strategy) = CreatePhilosopher(tryAcquireForksResult: false);
 
         // Thinking => Hungry
         await philosopher.RunOneIteration(CancellationToken.None);
@@ -92,8 +93,8 @@ public class PhilosopherStateTransitionTests
 
     [Fact]
     public async Task Eating_To_Thinking()
-    {
-        var philosopher = CreatePhilosopher(out var strategy, tryAcquireForksResult: true);
+    {        
+        var (philosopher, strategy) = CreatePhilosopher(tryAcquireForksResult: true);
 
         // Thinking => Hungry => Eating
         await philosopher.RunOneIteration(CancellationToken.None);
@@ -115,7 +116,7 @@ public class PhilosopherStateTransitionTests
     [Fact]
     public async Task Full_Cycle_Thinking_Hungry_Eating_Thinking()
     {
-        var philosopher = CreatePhilosopher(out _, tryAcquireForksResult: true);
+        var (philosopher, _) = CreatePhilosopher(tryAcquireForksResult: true);
 
         // Thinking => Hungry
         await philosopher.RunOneIteration(CancellationToken.None);

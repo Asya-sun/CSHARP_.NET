@@ -1,55 +1,189 @@
-﻿//using FluentAssertions;
-//using Microsoft.Extensions.Logging;
-//using Microsoft.Extensions.Options;
-//using Moq;
-//using Philosophers.Core.Interfaces;
-//using Philosophers.Core.Models;
-//using Philosophers.Core.Models.Enums;
-//using Philosophers.Services;
-//using Philosophers.Strategies;
+﻿using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using Philosophers.Core.Interfaces;
+using Philosophers.Core.Models;
+using Philosophers.Core.Models.Enums;
+using Philosophers.Services;
+using Philosophers.Strategies;
+using System.Xml.Linq;
 
-//namespace Philosophers.Tests;
+namespace Philosophers.Tests;
 
-//public class DeadlockTests
-//{
-//    [Fact]
-//    public async Task StupidStrategy_GuaranteedDeadlock_WhenAllPhilosophersTryToEat()
-//    {
-//        // Arrange
-//        var tableManager = new TableManager(
-//            new Mock<ILogger<TableManager>>().Object,
-//            new Mock<IMetricsCollector>().Object);
+public class DeadlockTests
+{
+    private (TestDeadlockDetector detector, Mock<ITableManager> tableMock) CreateTestDeadlockDetector()
+    {
+        var tableMock = new Mock<ITableManager>();
+        var metricsMock = new Mock<IMetricsCollector>();
+        var loggerMock = new Mock<ILogger<TestDeadlockDetector>>();
+        var detector = new TestDeadlockDetector(
+            tableMock.Object,
+            loggerMock.Object,
+            metricsMock.Object);
+        return (detector, tableMock);
+    }
 
-//        var optionsMock = new Mock<IOptions<SimulationOptions>>();
-//        optionsMock.Setup(o => o.Value).Returns(new SimulationOptions
-//        {
-//            ForkAcquisitionTime = 10
-//        });
+    private void SetupDeadlockConditions(Mock<ITableManager> tableMock)
+    {
+        var philosophers = new List<Philosopher>
+        {
+            new Philosopher(PhilosopherName.Plato) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Aristotle) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Socrates) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Decartes) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Kant) { State = PhilosopherState.Hungry }
+        };
 
-//        var stupidStrategy = new StupidStrategy(
-//            new Mock<ILogger<StupidStrategy>>().Object,
-//            optionsMock.Object);
+        var forks = new List<Fork>
+        {
+            new Fork(1) { _state = ForkState.InUse, _usedBy = PhilosopherName.Plato },
+            new Fork(2) { _state = ForkState.InUse, _usedBy = PhilosopherName.Aristotle },
+            new Fork(3) { _state = ForkState.InUse, _usedBy = PhilosopherName.Socrates },
+            new Fork(4) { _state = ForkState.InUse, _usedBy = PhilosopherName.Decartes },
+            new Fork(5) { _state = ForkState.InUse, _usedBy = PhilosopherName.Kant }
+        };
 
-//        // Act - ВСЕ философы одновременно пытаются взять вилки
-//        var philosophers = new[] { "Платон", "Аристотель", "Сократ", "Декарт", "Кант" };
-//        var tasks = philosophers.Select(name =>
-//            stupidStrategy.TryAcquireForksAsync(name, tableManager, CancellationToken.None)
-//        ).ToArray();
+        tableMock.Setup(t => t.GetAllPhilosophers()).Returns(philosophers);
+        tableMock.Setup(t => t.GetAllForks()).Returns(forks);
 
-//        // Ждем достаточно долго чтобы дедлок проявился
-//        var completedTask = await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(3000));
+        // Настраиваем вызов ReleaseFork для любого философа и любой вилки
+        tableMock.Setup(t => t.ReleaseFork(It.IsAny<int>(), It.IsAny<PhilosopherName>()));
+    }
 
-//        // Assert - ДЕДЛОК! Задачи не должны завершиться
-//        completedTask.Should().NotBeSameAs(tasks[0], "потому что должен быть дедлок");
+    [Fact]
+    public void CheckForDeadlock_Should_Return_True_When_All_Philosophers_Hungry_And_All_Forks_InUse()
+    {
+        // Arrange
+        var (testDeadlockDetector, tableMock) = CreateTestDeadlockDetector();
+        SetupDeadlockConditions(tableMock);
 
-//        // Проверяем что все вилки заняты
-//        for (int i = 1; i <= 5; i++)
-//        {
-//            tableManager.GetForkState(i).Should().Be(ForkState.InUse, $"вилка {i} должна быть занята");
-//        }
+        // Act
+        var result = testDeadlockDetector.CheckForDeadlock();
 
-//        // Проверяем что никто не получил обе вилки
-//        var results = tasks.Select(t => t.IsCompleted ? t.Result : false).ToArray();
-//        results.Should().NotContain(true,"никто не должен получить обе вилки при дедлоке");
-//    }
-//}
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void CheckForDeadlock_Should_Return_False_When_Not_All_Philosophers_Hungry()
+    {
+        // Arrange
+        var (testDeadlockDetector, tableMock) = CreateTestDeadlockDetector();
+        var philosophers = new List<Philosopher>
+        {
+            new Philosopher(PhilosopherName.Plato) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Aristotle) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Socrates) { State = PhilosopherState.Eating },
+            new Philosopher(PhilosopherName.Decartes) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Kant) { State = PhilosopherState.Hungry }
+        };
+
+        var forks = new List<Fork>
+        {
+            new Fork(1) { _state = ForkState.InUse, _usedBy = PhilosopherName.Plato },
+            new Fork(2) { _state = ForkState.InUse, _usedBy = PhilosopherName.Aristotle },
+            new Fork(3) { _state = ForkState.InUse, _usedBy = PhilosopherName.Socrates },
+            new Fork(4) { _state = ForkState.InUse, _usedBy = PhilosopherName.Decartes },
+            new Fork(5) { _state = ForkState.InUse, _usedBy = PhilosopherName.Kant }
+        };
+
+        tableMock.Setup(t => t.GetAllPhilosophers()).Returns(philosophers);
+        tableMock.Setup(t => t.GetAllForks()).Returns(forks);
+
+        // Act
+        var result = testDeadlockDetector.CheckForDeadlock();
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task ExecuteOneCheckCycle_Should_Resolve_Deadlock_When_Detected()
+    {
+        // Arrange
+        var (testDeadlockDetector, tableMock) = CreateTestDeadlockDetector();
+        SetupDeadlockConditions(tableMock);
+
+        // Act
+        await testDeadlockDetector.ExecuteOneCheckCycle();
+
+        // Assert
+        Assert.True(testDeadlockDetector.WasDeadlockResolved);
+        Assert.Equal(1, testDeadlockDetector.DeadlockResolutionCount);
+
+        // ??
+        tableMock.Verify(t => t.ReleaseFork(It.IsAny<int>(), It.IsAny<PhilosopherName>()), Times.Exactly(2) );
+        //tableMock.Verify(t => t.ReleaseFork(It.IsAny<int>(), It.IsAny<PhilosopherName>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task ExecuteOneCheckCycle_Should_Not_Resolve_When_No_Deadlock()
+    {
+        // Arrange
+        var (testDeadlockDetector, tableMock) = CreateTestDeadlockDetector();
+
+        var philosophers = new List<Philosopher>
+        {
+            new Philosopher(PhilosopherName.Plato) { State = PhilosopherState.Thinking },
+            new Philosopher(PhilosopherName.Aristotle) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Socrates) { State = PhilosopherState.Eating },
+            new Philosopher(PhilosopherName.Decartes) { State = PhilosopherState.Hungry },
+            new Philosopher(PhilosopherName.Kant) { State = PhilosopherState.Thinking }
+        };
+
+        var forks = new List<Fork>
+        {
+            new Fork(1) { _state = ForkState.Available },
+            new Fork(2) { _state = ForkState.InUse, _usedBy = PhilosopherName.Aristotle },
+            new Fork(3) { _state = ForkState.InUse, _usedBy = PhilosopherName.Socrates },
+            new Fork(4) { _state = ForkState.InUse, _usedBy = PhilosopherName.Decartes },
+            new Fork(5) { _state = ForkState.Available }
+        };
+
+        tableMock.Setup(t => t.GetAllPhilosophers()).Returns(philosophers);
+        tableMock.Setup(t => t.GetAllForks()).Returns(forks);
+
+        // Act
+        await testDeadlockDetector.ExecuteOneCheckCycle();
+
+        // Assert
+        Assert.False(testDeadlockDetector.WasDeadlockResolved);
+        Assert.Equal(0, testDeadlockDetector.DeadlockResolutionCount);
+    }
+
+}
+
+
+public class TestDeadlockDetector : DeadlockDetector
+{
+    public bool WasDeadlockResolved { get; private set; } = false;
+    public int DeadlockResolutionCount { get; private set; } = 0;
+
+    public TestDeadlockDetector(
+        ITableManager tableManager,
+        ILogger<TestDeadlockDetector> logger,
+        IMetricsCollector metricsCollector)
+        : base(tableManager, logger, metricsCollector)
+    {
+    }
+
+    public async Task ExecuteOneCheckCycle(CancellationToken cancellationToken = default)
+    {
+        WasDeadlockResolved = false;
+
+        if (CheckForDeadlock())
+        {
+            await ResolveDeadlock();
+            WasDeadlockResolved = true;
+            DeadlockResolutionCount++;
+        }
+    }
+
+    // для прямого вызова разрешения дедлока в тестах
+    public async Task ForceResolveDeadlock()
+    {
+        await ResolveDeadlock();
+    }
+}

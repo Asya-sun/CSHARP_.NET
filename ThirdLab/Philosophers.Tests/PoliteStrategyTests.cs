@@ -11,24 +11,26 @@ using Philosophers.Strategies;
 namespace Philosophers.Tests;
 public class PoliteStrategyTests
 {
-    private TestPhilosopher CreatePhilosopher(out PoliteStrategy strategy, out Mock<ITableManager> tableMock)
+    private (TestPhilosopher testPhilosopher, PoliteStrategy strategy, Mock<ITableManager> tableMock) CreatePhilosopher()
     {
-        tableMock = new Mock<ITableManager>();
+        var tableMock = new Mock<ITableManager>();
         tableMock.Setup(t => t.GetPhilosopherForks(PhilosopherName.Socrates))
                  .Returns((0, 1));
         var metricsMock = new Mock<IMetricsCollector>();
         var options = Options.Create(new SimulationOptions { ForkAcquisitionTime = 0 });
         var philosopherLoggerMock = new Mock<ILogger<TestPhilosopher>>();
         var strategyLoggerMock = new Mock<ILogger<PoliteStrategy>>();
-        strategy = new PoliteStrategy(strategyLoggerMock.Object, options);
+        var strategy = new PoliteStrategy(strategyLoggerMock.Object, options);
 
-        return new TestPhilosopher(
+        var testPhilosopher =  new TestPhilosopher(
             PhilosopherName.Socrates,
             tableMock.Object,
             strategy,
             metricsMock.Object,
             options,
             philosopherLoggerMock.Object);
+
+        return (testPhilosopher, strategy, tableMock);
     }
 
     // тестируем, что когда обе вилки доступны, то стратегия получает обе вилки
@@ -36,7 +38,7 @@ public class PoliteStrategyTests
     public async Task AcquireForks_Success_WhenBothForksAvailable()
     {
         // Arrange
-        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+        var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
                  .Returns((0, 1));
@@ -63,7 +65,7 @@ public class PoliteStrategyTests
     public async Task AcquireForks_Fails_WhenRightForkUnavailable()
     {
         // Arrange
-        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+        var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
                  .Returns((0, 1));
@@ -98,7 +100,7 @@ public class PoliteStrategyTests
     public async Task Hungry_FailsToTakeRightFork_ReleasesLeftFork()
     {
         // Arrange
-        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+        var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         // левая вилка доступна, правая нет
         tableMock.SetupSequence(t => t.WaitForForkAsync(It.IsAny<int>(), PhilosopherName.Socrates, It.IsAny<CancellationToken>(), 0))

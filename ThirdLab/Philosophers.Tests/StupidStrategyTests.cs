@@ -11,24 +11,26 @@ using Philosophers.Strategies;
 namespace Philosophers.Tests;
 public class StupidStrategyPhilosopherTests
 {
-    private TestPhilosopher CreatePhilosopher(out StupidStrategy strategy, out Mock<ITableManager> tableMock)
+    private (TestPhilosopher testPhilosopher, StupidStrategy strategy, Mock<ITableManager> tableMock) CreatePhilosopher()
     {
-        tableMock = new Mock<ITableManager>();
+        var tableMock = new Mock<ITableManager>();
         tableMock.Setup(t => t.GetPhilosopherForks(PhilosopherName.Socrates))
                  .Returns((0, 1));
         var metricsMock = new Mock<IMetricsCollector>();
         var options = Options.Create(new SimulationOptions { ForkAcquisitionTime = 0 });
         var philosopherLoggerMock = new Mock<ILogger<TestPhilosopher>>();
         var strategyLoggerMock = new Mock<ILogger<StupidStrategy>>();
-        strategy = new StupidStrategy(strategyLoggerMock.Object, options);
+        var strategy = new StupidStrategy(strategyLoggerMock.Object, options);
 
-        return new TestPhilosopher(
+        var testPhilosopher = new TestPhilosopher(
             PhilosopherName.Socrates,
             tableMock.Object,
             strategy,
             metricsMock.Object,
             options,
             philosopherLoggerMock.Object);
+
+        return (testPhilosopher, strategy, tableMock);
     }
 
 
@@ -37,7 +39,7 @@ public class StupidStrategyPhilosopherTests
     {
 
         // Arrange
-        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+        var (philosopher, strategy, tableMock) = CreatePhilosopher();
         
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName)).Returns((0, 1));
 
@@ -65,7 +67,7 @@ public class StupidStrategyPhilosopherTests
     {
         // Arrange
 
-        var philosopher = CreatePhilosopher(out var strategy, out var tableMock);
+        var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName)).Returns((0, 1));
 
