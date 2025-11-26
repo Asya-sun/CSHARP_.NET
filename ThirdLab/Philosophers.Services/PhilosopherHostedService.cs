@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
+using Philosophers.Core;
 using Philosophers.Core.Models.Enums;
 using System.Diagnostics;
 using System.Text;
@@ -11,7 +12,8 @@ namespace Philosophers.Services;
 
 public abstract class PhilosopherHostedService : BackgroundService
 {
-    protected readonly string _name;
+    protected readonly PhilosopherName _name;
+    protected readonly String _stringName;
     protected readonly ITableManager _tableManager;
     protected readonly IPhilosopherStrategy _strategy;
     protected readonly IMetricsCollector _metricsCollector;
@@ -28,7 +30,7 @@ public abstract class PhilosopherHostedService : BackgroundService
     protected Stopwatch _eatingTimer = new Stopwatch();
 
     protected PhilosopherHostedService(
-        string name,
+        PhilosopherName name,
         ITableManager tableManager,
         IPhilosopherStrategy strategy,
         IMetricsCollector metricsCollector,
@@ -41,14 +43,13 @@ public abstract class PhilosopherHostedService : BackgroundService
         _metricsCollector = metricsCollector;
         _options = options.Value;
         _logger = logger;
-
-        // Начинаем с мышления
+        _stringName = PhilosopherExtensions.ToName(_name);
         _thinkingTimer.Start();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Философ {Philosopher} начинает свою деятельность", _name);
+        _logger.LogInformation("Философ {Philosopher} начинает свою деятельность", PhilosopherExtensions.ToName(_name));
 
         while (!stoppingToken.IsCancellationRequested)
         {

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
+using Philosophers.Core;
 using Philosophers.Services;
 
 namespace Philosophers.Services.Philosophers;
@@ -14,7 +15,7 @@ public class Aristotle : PhilosopherHostedService
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
         ILogger<Aristotle> logger)
-        : base("Аристотель", tableManager, strategy, metricsCollector, options, logger)
+        : base(PhilosopherName.Aristotle, tableManager, strategy, metricsCollector, options, logger)
     {
     }
 }

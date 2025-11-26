@@ -48,45 +48,6 @@ public class DisplayService : BackgroundService
         _simulationTimer.Stop();
     }
 
-    //private void DisplayCurrentState()
-    //{
-    //    var philosophers = _tableManager.GetAllPhilosophers();
-    //    var forks = _tableManager.GetAllForks();
-
-    //    _logger.LogInformation("===== ШАГ {Step} =====", _step);
-
-    //    _logger.LogInformation("Философы:");
-    //    foreach (var philosopher in philosophers)
-    //    {
-    //        var stateText = philosopher.State switch
-    //        {
-    //            PhilosopherState.Eating => $"Eating",
-    //            PhilosopherState.Thinking => $"Thinking",
-    //            PhilosopherState.Hungry => $"Hungry (Action = {philosopher.Action})",
-    //            _ => philosopher.State.ToString()
-    //        };
-
-    //        // Берем количество приемов пищи из MetricsCollector
-    //        var eatCount = _metricsCollector.GetEatCount(philosopher.Name);
-
-    //        _logger.LogInformation("  {Name}: {State}, съедено: {EatCount}",
-    //            philosopher.Name, stateText, eatCount);
-
-    //        //_logger.LogInformation("  {Name}: {State}, съедено: {EatCount}",
-    //        //    philosopher.Name, stateText, philosopher.EatCount);
-    //    }
-
-    //    _logger.LogInformation("Вилки:");
-    //    foreach (var fork in forks)
-    //    {
-    //        var usedBy = fork._state == ForkState.InUse ? $"(используется {fork._usedBy})" : "";
-    //        _logger.LogInformation("  Fork-{ForkId}: {State} {UsedBy}",
-    //            fork._id, fork._state, usedBy);
-    //    }
-
-    //    _logger.LogInformation("");
-    //}
-
     private void DisplayCurrentState()
     {
         var philosophers = _tableManager.GetAllPhilosophers();

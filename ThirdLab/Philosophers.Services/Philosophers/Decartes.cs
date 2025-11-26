@@ -15,7 +15,7 @@ public class Decartes : PhilosopherHostedService
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
         ILogger<Decartes> logger)
-        : base("Декарт", tableManager, strategy, metricsCollector, options, logger)
+        : base(PhilosopherName.Decartes, tableManager, strategy, metricsCollector, options, logger)
     {
     }
 }

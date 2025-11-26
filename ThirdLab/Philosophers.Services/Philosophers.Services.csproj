@@ -15,5 +15,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Philosophers.Core\Philosophers.Core.csproj" />
   </ItemGroup>
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Philosophers.Tests</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 
 </Project>

@@ -14,7 +14,7 @@ public class Socrates : PhilosopherHostedService
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
         ILogger<Socrates> logger)
-        : base("Сократ", tableManager, strategy, metricsCollector, options, logger)
+        : base(PhilosopherName.Socrates, tableManager, strategy, metricsCollector, options, logger)
     {
     }
 }
