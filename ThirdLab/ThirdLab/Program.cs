@@ -9,6 +9,9 @@ using Philosophers.Strategies;
 using Philosophers.Services.Philosophers;
 using System.Text;
 using System.IO;
+using Philosophers.DB.Context;
+using Microsoft.EntityFrameworkCore;
+using Philosophers.DB.Interfaces;
 
 // For supporting Russian
 Console.OutputEncoding = Encoding.UTF8;
@@ -47,6 +50,13 @@ var host = Host.CreateDefaultBuilder(args)
 
         // Сервис для управления временем симуляции
         services.AddHostedService<SimulationHostedService>();
+
+        services.AddDbContext<SimulationDBContext>(options =>
+            options.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection")));
+
+        // Регистрируем репозиторий
+        services.AddScoped<ISimulationRepository, SimulationRepository>();
+
     })
     .ConfigureLogging(logging =>
     {

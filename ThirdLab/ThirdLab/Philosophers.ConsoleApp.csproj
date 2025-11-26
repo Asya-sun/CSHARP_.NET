@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Philosophers.Core\Philosophers.Core.csproj" />
+    <ProjectReference Include="..\Philosophers.DB\Philosophers.DB.csproj" />
     <ProjectReference Include="..\Philosophers.Services\Philosophers.Services.csproj" />
     <ProjectReference Include="..\Philosophers.Strategies\Philosophers.Strategies.csproj" />
   </ItemGroup>
