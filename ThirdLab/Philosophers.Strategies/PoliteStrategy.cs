@@ -27,7 +27,6 @@ public class PoliteStrategy : IPhilosopherStrategy
 
         _logger.LogDebug("Философ {Philosopher} пытается взять левую вилку {LeftFork}", philosopherName, leftForkId);
 
-        // Пытаемся взять левую вилку
         bool leftAcquired = await tableManager.WaitForForkAsync(leftForkId, philosopherName, cancellationToken, 0);
         if (!leftAcquired)
         {
@@ -35,12 +34,10 @@ public class PoliteStrategy : IPhilosopherStrategy
             return false;
         }
 
-        // Имитируем время взятия вилки
         await Task.Delay(_options.ForkAcquisitionTime, cancellationToken);
 
         _logger.LogDebug("Философ {Philosopher} пытается взять правую вилку {RightFork}", PhilosopherExtensions.ToName(philosopherName), rightForkId);
 
-        // Пытаемся взять правую вилку
         bool rightAcquired = await tableManager.WaitForForkAsync(rightForkId, philosopherName, cancellationToken, 0);
         if (!rightAcquired)
         {
@@ -49,7 +46,6 @@ public class PoliteStrategy : IPhilosopherStrategy
             return false;
         }
 
-        // Имитируем время взятия второй вилки
         await Task.Delay(_options.ForkAcquisitionTime, cancellationToken);
 
         _logger.LogInformation("Философ {Philosopher} успешно взял обе вилки", PhilosopherExtensions.ToName(philosopherName));

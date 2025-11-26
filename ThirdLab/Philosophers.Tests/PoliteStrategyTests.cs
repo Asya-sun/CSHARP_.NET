@@ -86,8 +86,6 @@ public class PoliteStrategyTests
 
         // Левую вилку должны отпустить
         tableMock.Verify(t => t.ReleaseFork(0, philosopher.ExposedName), Times.Once);
-
-        // Правую НЕ отпускаем (мы её не брали)
         tableMock.Verify(t => t.ReleaseFork(1, philosopher.ExposedName), Times.Never);
     }
 

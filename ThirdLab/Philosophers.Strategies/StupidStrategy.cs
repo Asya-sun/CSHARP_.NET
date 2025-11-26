@@ -22,39 +22,34 @@ public class StupidStrategy : IPhilosopherStrategy
 
         var (leftForkId, rightForkId) = tableManager.GetPhilosopherForks(philosopherName);
 
-        _logger.LogDebug("Философ {Philosopher} ТУПО берет левую вилку {LeftFork} (и не отпустит!)",
+        _logger.LogDebug("Философ {Philosopher} берет левую вилку {LeftFork}",
             PhilosopherExtensions.ToName(philosopherName), leftForkId);
 
-        // бесконечное ожидание на левой вилке
         bool leftAcquired = await tableManager.WaitForForkAsync(leftForkId, philosopherName, cancellationToken);
         if (!leftAcquired)
         {
-            _logger.LogDebug("Философ {Philosopher} не смог взять левую вилку (странно...)", PhilosopherExtensions.ToName(philosopherName));
+            _logger.LogDebug("Философ {Philosopher} не смог взять левую вилку", PhilosopherExtensions.ToName(philosopherName));
             return false;
         }
 
-        // Имитируем время взятия вилки
         await Task.Delay(_options.ForkAcquisitionTime, cancellationToken);
 
         _logger.LogDebug("Философ {Philosopher} взял левую, ждет правую {RightFork}",
             PhilosopherExtensions.ToName(philosopherName), rightForkId);
 
-        // бесконечное ожидание на правой вилке
         bool rightAcquired = await tableManager.WaitForForkAsync(rightForkId, philosopherName, cancellationToken);
 
         if (!rightAcquired)
         {
-            // Этого никогда не должно случиться с бесконечным ожиданием,
-            // но на случай отмены операции
-            _logger.LogDebug("Философ {Philosopher} не смог взять правую вилку (отмена?)", PhilosopherExtensions.ToName(philosopherName));
+            // Это на случай отмены операции
+            _logger.LogDebug("Философ {Philosopher} не смог взять правую вилку и отпускает левую вилку {LeftFork}", PhilosopherExtensions.ToName(philosopherName), leftForkId);
             tableManager.ReleaseFork(leftForkId, philosopherName);
             return false;
         }
 
-        // Имитируем время взятия второй вилки
         await Task.Delay(_options.ForkAcquisitionTime, cancellationToken);
 
-        _logger.LogInformation("Философ {Philosopher} ЧУДОМ взял обе вилки (дедлок избегнут!)", PhilosopherExtensions.ToName(philosopherName));
+        _logger.LogInformation("Философ {Philosopher} взял обе вилки", PhilosopherExtensions.ToName(philosopherName));
         return true;
     }
 

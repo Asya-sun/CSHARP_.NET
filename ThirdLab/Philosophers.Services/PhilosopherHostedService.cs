@@ -44,8 +44,6 @@ public abstract class PhilosopherHostedService : BackgroundService
         _options = options.Value;
         _logger = logger;
         _stringName = PhilosopherExtensions.ToName(_name);
-
-        // Начинаем с мышления
         _thinkingTimer.Start();
     }
 

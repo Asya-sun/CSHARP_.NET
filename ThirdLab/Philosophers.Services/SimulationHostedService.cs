@@ -33,7 +33,6 @@ public class SimulationHostedService : BackgroundService
 
         _logger.LogInformation("Время симуляции истекло. Завершаем...");
 
-        // Просто выводим метрики - они уже собраны в реальном времени
         _metricsCollector.PrintMetrics();
 
         _hostApplicationLifetime.StopApplication();
