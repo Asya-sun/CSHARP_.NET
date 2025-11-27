@@ -62,14 +62,12 @@ var host = Host.CreateDefaultBuilder(args)
             options.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection")));
 
         // Регистрируем репозиторий как Transient
-        services.AddTransient<ISimulationRepository, SimulationRepository>();// Сервис времени и контекста
+        services.AddTransient<ISimulationRepository, SimulationRepository>();
         services.AddScoped<RunIdService>();
 
         // Основные сервисы
         services.AddSingleton<ITableManager, TableManager>();
         services.AddSingleton<IMetricsCollector, MetricsCollector>();
-        //services.AddSingleton<IPhilosopherStrategy, PoliteStrategy>();
-        //services.AddSingleton<IPhilosopherStrategy, StupidStrategy>();
         services.AddTransient<StupidStrategy>();
         services.AddTransient<PoliteStrategy>();
 
@@ -99,6 +97,7 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
+
 using (var scope = host.Services.CreateScope())
 {
     try
@@ -106,13 +105,13 @@ using (var scope = host.Services.CreateScope())
         var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SimulationDBContext>>();
         using var context = await contextFactory.CreateDbContextAsync();
 
-        // Автоматически создаст базу и таблицы если их нет
-        await context.Database.EnsureCreatedAsync();
-        Console.WriteLine("База данных и таблицы созданы успешно!");
+        // миграции
+        await context.Database.MigrateAsync();
+        Console.WriteLine("миграции применены");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Ошибка создания базы: {ex.Message}");
+        Console.WriteLine($"ошибка миграций: {ex.Message}");
         throw;
     }
 }

@@ -43,7 +43,6 @@ public class PoliteStrategyTests
     [Fact]
     public async Task AcquireForks_Success_WhenBothForksAvailable()
     {
-        // Arrange
         var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
@@ -55,10 +54,8 @@ public class PoliteStrategyTests
                                                 0))
                  .ReturnsAsync(true);
 
-        // Act
         var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-        // Assert
         Assert.True(result);
 
         // проверка, что метод ReleaseFork не был вызван для этого философа
@@ -70,7 +67,6 @@ public class PoliteStrategyTests
     [Fact]
     public async Task AcquireForks_Fails_WhenRightForkUnavailable()
     {
-        // Arrange
         var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName))
@@ -84,13 +80,10 @@ public class PoliteStrategyTests
         tableMock.SetupSequence(t => t.WaitForForkAsync(1, philosopher.ExposedName, It.IsAny<CancellationToken>(), 0))
                  .ReturnsAsync(false);
 
-        // Act
         var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-        // Assert
         Assert.False(result);
 
-        // Левую вилку должны отпустить
         tableMock.Verify(t => t.ReleaseFork(0, philosopher.ExposedName), Times.Once);
         tableMock.Verify(t => t.ReleaseFork(1, philosopher.ExposedName), Times.Never);
     }
@@ -98,24 +91,23 @@ public class PoliteStrategyTests
 
 
     // тестирует philosopher.RunOneIteration
-    // state == Hungry → strategy.TryAcquireForksAsync(...)
+    // state == Hungry => strategy.TryAcquireForksAsync
     // возможно, этот тест лучше вынести в другой файл...
     [Fact]
     public async Task Hungry_FailsToTakeRightFork_ReleasesLeftFork()
     {
-        // Arrange
         var (philosopher, strategy, tableMock) = CreatePhilosopher();
 
         // левая вилка доступна, правая нет
         tableMock.SetupSequence(t => t.WaitForForkAsync(It.IsAny<int>(), PhilosopherName.Socrates, It.IsAny<CancellationToken>(), 0))
-                 .ReturnsAsync(true)  // левая
-                 .ReturnsAsync(false); // правая
+                 .ReturnsAsync(true)
+                 .ReturnsAsync(false);
 
-        // T → H
+        // Think => Hungry
         await philosopher.RunOneIteration(CancellationToken.None);
         Assert.Equal(PhilosopherState.Hungry, philosopher.ExposedState);
 
-        // H → H (неудача)
+        // Hyngry => Hungry
         await philosopher.RunOneIteration(CancellationToken.None);
         Assert.Equal(PhilosopherState.Hungry, philosopher.ExposedState);
 

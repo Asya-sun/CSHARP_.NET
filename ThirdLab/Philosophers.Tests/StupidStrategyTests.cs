@@ -43,8 +43,6 @@ public class StupidStrategyPhilosopherTests
     [Fact]
     public async Task AcquireForks_Success_WhenBothAvailable()
     {
-
-        // Arrange
         var (philosopher, strategy, tableMock) = CreatePhilosopher();
         
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName)).Returns((0, 1));
@@ -56,10 +54,8 @@ public class StupidStrategyPhilosopherTests
                             It.IsAny<int?>()))
                  .ReturnsAsync(true);
 
-        // Act
         var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-        // Assert
         Assert.True(result);
 
         tableMock.Verify(t => t.WaitForForkAsync(0, philosopher.ExposedName, It.IsAny<CancellationToken>(), It.IsAny<int?>()), Times.Once);
@@ -78,15 +74,13 @@ public class StupidStrategyPhilosopherTests
         tableMock.Setup(t => t.GetPhilosopherForks(philosopher.ExposedName)).Returns((0, 1));
 
         tableMock.Setup(t => t.WaitForForkAsync(0, philosopher.ExposedName, It.IsAny<CancellationToken>(), It.IsAny<int?>()))
-                 .ReturnsAsync(true);     // левая доступна
+                 .ReturnsAsync(true);
 
         tableMock.Setup(t => t.WaitForForkAsync(1, philosopher.ExposedName, It.IsAny<CancellationToken>(), It.IsAny<int?>()))
-                 .ReturnsAsync(false);    // правая занята
+                 .ReturnsAsync(false);
 
-        // Act
         var result = await strategy.TryAcquireForksAsync(philosopher.ExposedName, tableMock.Object, CancellationToken.None);
 
-        // Assert
         Assert.False(result);
 
         tableMock.Verify(t => t.WaitForForkAsync(0, philosopher.ExposedName, It.IsAny<CancellationToken>(), It.IsAny<int?>()), Times.Once);

@@ -13,24 +13,26 @@ Console.OutputEncoding = Encoding.UTF8;
 Guid runId;
 TimeSpan simulationTime;
 
+//dotnet run --runId 1af570b0-299b-4e8a-a1c3-f2ac602c388d --delay 4.12
+
 // Обработка аргументов
 if (args.Length == 0)
 {
-    Console.Write("Введите RunId: ");
+    Console.Write("введите RunId: ");
     var runIdInput = Console.ReadLine();
 
     if (!Guid.TryParse(runIdInput, out runId))
     {
-        Console.WriteLine("Неверный формат GUID");
+        Console.WriteLine("неверный формат RunId");
         return 1;
     }
 
-    Console.Write("Введите время в секундах: ");
+    Console.Write("введите время в секундах: ");
     var timeInput = Console.ReadLine();
 
     if (!double.TryParse(timeInput, out var delaySeconds))
     {
-        Console.WriteLine("Неверный формат времени");
+        Console.WriteLine("неверный формат времени ");
         return 1;
     }
 
@@ -40,13 +42,13 @@ else if (args.Length == 4 && args[0] == "--runId" && args[2] == "--delay")
 {
     if (!Guid.TryParse(args[1], out runId))
     {
-        Console.WriteLine("Неверный формат GUID");
+        Console.WriteLine("неверный формат RunId");
         return 1;
     }
 
     if (!double.TryParse(args[3], out var delaySeconds))
     {
-        Console.WriteLine("Неверный формат времени");
+        Console.WriteLine("неверный формат времени");
         return 1;
     }
 
@@ -54,8 +56,8 @@ else if (args.Length == 4 && args[0] == "--runId" && args[2] == "--delay")
 }
 else
 {
-    Console.WriteLine("Использование: DiningPhilosophers.View --runId <GUID> --delay <seconds>");
-    Console.WriteLine("Пример: DiningPhilosophers.View --runId 12345678-1234-1234-1234-123456789012 --delay 44.12");
+    Console.WriteLine("Пупупу dotnet run --runId <GUID> --delay <seconds>");
+    Console.WriteLine("Exmaple dotnet run --runId 1af570b0-299b-4e8a-a1c3-f2ac602c388d --delay 4.12");
     return 1;
 }
 
@@ -65,20 +67,16 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: false)
     .Build();
 
-// Настройка сервисов с ПОЛНОЙ конфигурацией логирования
 var services = new ServiceCollection();
 
-// Важно: сначала добавляем конфигурацию
 services.AddSingleton<IConfiguration>(configuration);
 
-// Затем добавляем логирование с правильной конфигурацией
 services.AddLogging(loggingBuilder =>
 {
     loggingBuilder.AddConfiguration(configuration.GetSection("Logging"));
     loggingBuilder.AddConsole();
 });
 
-// Затем остальные сервисы
 services.AddDbContextFactory<SimulationDBContext>(options =>
     options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 

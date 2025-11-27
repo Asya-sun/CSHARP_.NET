@@ -287,8 +287,8 @@ public class SimulationRepositoryDbTests : IDisposable
         // Act - Запрашиваем состояние на 10 секунде
         var statesAtTime10 = await repository.GetPhilosopherStatesAtTimeAsync(runId, TimeSpan.FromSeconds(10));
 
-        // Assert - Должен вернуться Thinking (состояние на 5 секунде)
-        Assert.NotEmpty(statesAtTime10); // ДОБАВЬ ЭТУ ПРОВЕРКУ
+        
+        Assert.NotEmpty(statesAtTime10);
         var state = statesAtTime10.Single(p => p.PhilosopherName == PhilosopherName.Plato);
         Assert.Equal(PhilosopherState.Thinking, state.State);
         Assert.Equal("ReleaseLeftFork|ReleaseRightFork", state.Action);
