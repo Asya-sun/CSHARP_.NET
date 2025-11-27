@@ -9,11 +9,12 @@ using System.Threading.Tasks;
 
 namespace Philosophers.DB.Interfaces;
 
+// интерфейс для работы с бд
 public interface ISimulationRepository
 {
     // Запись данных
     Task<Guid> StartNewRunAsync(SimulationOptions options);
-    Task RecordPhilosopherStateAsync(Guid runId, PhilosopherName name, PhilosopherState state, string action, TimeSpan simulationTime);
+    Task RecordPhilosopherStateAsync(Guid runId, PhilosopherName name, PhilosopherState state, string action, string strategyName, TimeSpan simulationTime);
     Task RecordForkStateAsync(Guid runId, int forkId, ForkState state, PhilosopherName? usedBy, TimeSpan simulationTime);
     Task CompleteRunAsync(Guid runId);
 

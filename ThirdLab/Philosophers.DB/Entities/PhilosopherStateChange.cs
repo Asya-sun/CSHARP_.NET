@@ -14,6 +14,8 @@ public class PhilosopherStateChange
     public PhilosopherName PhilosopherName { get; set; }
     public PhilosopherState State { get; set; }
     public string Action { get; set; } = string.Empty;
+    public string StrategyName { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
+    // время от начала симуляции 
     public TimeSpan SimulationTime { get; set; }
 }

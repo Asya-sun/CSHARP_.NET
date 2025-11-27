@@ -20,6 +20,7 @@ public abstract class PhilosopherHostedService : BackgroundService
     protected readonly SimulationOptions _options;
     protected readonly ILogger<PhilosopherHostedService> _logger;
     protected readonly Random _random = new Random();
+    protected readonly String _strategyName;
 
     protected PhilosopherState _state = PhilosopherState.Thinking;
     protected int _stepsLeft = 0;
@@ -45,6 +46,8 @@ public abstract class PhilosopherHostedService : BackgroundService
         _logger = logger;
         _stringName = PhilosopherExtensions.ToName(_name);
         _thinkingTimer.Start();
+
+        _strategyName = strategy.GetType().Name;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
