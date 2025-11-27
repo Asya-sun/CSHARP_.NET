@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
 using Philosophers.Services;
 using System;
 using System.Collections.Generic;
@@ -28,8 +29,10 @@ namespace Philosophers.Tests
             IPhilosopherStrategy strategy,
             IMetricsCollector metricsCollector,
             IOptions<SimulationOptions> options,
-            ILogger<TestPhilosopher> logger)
-            : base(name, tableManager, strategy, metricsCollector, options, logger)
+            ILogger<TestPhilosopher> logger,
+            ISimulationRepository repository,
+            RunIdService runIdService)
+            : base(name, tableManager, strategy, metricsCollector, options, logger, repository, runIdService)
         {
         }
 

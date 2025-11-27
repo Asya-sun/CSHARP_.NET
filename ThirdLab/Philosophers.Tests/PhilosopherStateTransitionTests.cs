@@ -1,11 +1,12 @@
 ﻿// PhilosopherStateTransitionTests.cs
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
-using Philosophers.Services;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
+using Philosophers.Services;
 
 namespace Philosophers.Tests;
 
@@ -37,13 +38,18 @@ public class PhilosopherStateTransitionTests
 
         var logger = new Mock<ILogger<TestPhilosopher>>();
 
+        var repositoryMock = new Mock<ISimulationRepository>();
+        var runIdServiceMock = new Mock<RunIdService>();
+
         var testPhilosopher = new TestPhilosopher(
             PhilosopherName.Socrates,
             tableMock.Object,
             strategyMock.Object,
             metricsMock.Object,
             options,
-            logger.Object);
+            logger.Object,
+            repositoryMock.Object,
+            runIdServiceMock.Object);
 
         return (testPhilosopher, strategyMock);
     }

@@ -5,6 +5,7 @@ using Moq;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
 using Philosophers.Services;
 using Philosophers.Strategies;
 using System.Xml.Linq;
@@ -18,10 +19,15 @@ public class DeadlockTests
         var tableMock = new Mock<ITableManager>();
         var metricsMock = new Mock<IMetricsCollector>();
         var loggerMock = new Mock<ILogger<TestDeadlockDetector>>();
+        var repositoryMock = new Mock<ISimulationRepository>();
+        var runIdServiceMock = new Mock<RunIdService>();
+
         var detector = new TestDeadlockDetector(
             tableMock.Object,
             loggerMock.Object,
-            metricsMock.Object);
+            metricsMock.Object,
+            repositoryMock.Object,
+            runIdServiceMock.Object);
         return (detector, tableMock);
     }
 
@@ -164,8 +170,10 @@ public class TestDeadlockDetector : DeadlockDetector
     public TestDeadlockDetector(
         ITableManager tableManager,
         ILogger<TestDeadlockDetector> logger,
-        IMetricsCollector metricsCollector)
-        : base(tableManager, logger, metricsCollector)
+        IMetricsCollector metricsCollector,
+        ISimulationRepository repository,
+        RunIdService runIdService)
+        : base(tableManager, logger, metricsCollector, repository, runIdService)
     {
     }
 

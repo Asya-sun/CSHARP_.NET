@@ -5,6 +5,7 @@ using Moq;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
 using Philosophers.Services;
 using Philosophers.Strategies;
 
@@ -21,6 +22,9 @@ public class PoliteStrategyTests
         var philosopherLoggerMock = new Mock<ILogger<TestPhilosopher>>();
         var strategyLoggerMock = new Mock<ILogger<PoliteStrategy>>();
         var strategy = new PoliteStrategy(strategyLoggerMock.Object, options);
+        var repositoryMock = new Mock<ISimulationRepository>();
+        var runIdServiceMock = new Mock<RunIdService>();
+
 
         var testPhilosopher =  new TestPhilosopher(
             PhilosopherName.Socrates,
@@ -28,7 +32,9 @@ public class PoliteStrategyTests
             strategy,
             metricsMock.Object,
             options,
-            philosopherLoggerMock.Object);
+            philosopherLoggerMock.Object,
+            repositoryMock.Object,
+            runIdServiceMock.Object);
 
         return (testPhilosopher, strategy, tableMock);
     }
