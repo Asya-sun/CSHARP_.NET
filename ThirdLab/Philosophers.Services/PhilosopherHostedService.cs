@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Philosophers.Core;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
-using Philosophers.Core;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
 using System.Diagnostics;
 using System.Text;
 
@@ -29,6 +30,10 @@ public abstract class PhilosopherHostedService : BackgroundService
     protected Stopwatch _hungryTimer = new Stopwatch();
     protected Stopwatch _thinkingTimer = new Stopwatch();
     protected Stopwatch _eatingTimer = new Stopwatch();
+    protected readonly ISimulationRepository _repository;
+    protected Guid _currentRunId;
+    private readonly RunIdService _runIdService;
+
 
     protected PhilosopherHostedService(
         PhilosopherName name,
@@ -36,18 +41,24 @@ public abstract class PhilosopherHostedService : BackgroundService
         IPhilosopherStrategy strategy,
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
-        ILogger<PhilosopherHostedService> logger)
+        ILogger<PhilosopherHostedService> logger,
+        ISimulationRepository repository,
+        RunIdService runIdService)
     {
         _name = name;
         _tableManager = tableManager;
         _strategy = strategy;
+        _strategyName = strategy.GetType().Name;
         _metricsCollector = metricsCollector;
         _options = options.Value;
         _logger = logger;
+        _repository = repository;
+        _runIdService = runIdService;
+        _currentRunId = _runIdService.CurrentRunId;
+
+
         _stringName = PhilosopherExtensions.ToName(_name);
         _thinkingTimer.Start();
-
-        _strategyName = strategy.GetType().Name;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,6 +80,10 @@ public abstract class PhilosopherHostedService : BackgroundService
                         _hungryTimer.Restart();
                         _action = "TakeLeftFork|TakeRightFork";
                         _logger.LogDebug("Философ {Philosopher} проголодался", _name);
+
+                        var simulationTime = _runIdService.GetCurrentSimulationTime();
+                        await _repository.RecordPhilosopherStateAsync(
+                            _currentRunId, _name, _state, _action, _strategyName, simulationTime);
                         break;
 
                     case PhilosopherState.Hungry:
@@ -81,6 +96,9 @@ public abstract class PhilosopherHostedService : BackgroundService
                             _stepsLeft = _random.Next(_options.EatingTimeMin, _options.EatingTimeMax + 1);
                             _action = "Eating";
                             _eatingTimer.Restart();
+                            simulationTime = _runIdService.GetCurrentSimulationTime();
+                            await _repository.RecordPhilosopherStateAsync(
+                                _currentRunId, _name, _state, _action, _strategyName, simulationTime);
                             _logger.LogDebug("Философ {Philosopher} начинает есть", _name);
                         }
                         else
@@ -103,6 +121,9 @@ public abstract class PhilosopherHostedService : BackgroundService
                         _action = "ReleaseLeftFork|ReleaseRightFork";
                         _thinkingTimer.Restart();
                         _logger.LogDebug("Философ {Philosopher} закончил есть. Всего поел: {EatCount} раз", _name, _eatCount);
+                        simulationTime = _runIdService.GetCurrentSimulationTime();
+                        await _repository.RecordPhilosopherStateAsync(
+                            _currentRunId, _name, _state, _action, _strategyName, simulationTime);
                         break;
                 }
 

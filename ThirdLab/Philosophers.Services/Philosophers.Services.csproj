@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Philosophers.Core\Philosophers.Core.csproj" />
+    <ProjectReference Include="..\Philosophers.DB\Philosophers.DB.csproj" />
   </ItemGroup>
 	<ItemGroup>
 		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">

@@ -13,21 +13,13 @@ public class SimulationDBContext : DbContext
     public SimulationDBContext(DbContextOptions<SimulationDBContext> options)
         : base(options) { }
 
-    public DbSet<SimulationRun> SimulationRuns => Set<SimulationRun>();
+    public DbSet<SimulationRun> SimulationRuns => Set<SimulationRun>(); 
     public DbSet<PhilosopherStateChange> PhilosopherStateChanges => Set<PhilosopherStateChange>();
     public DbSet<ForkStateChange> ForkStateChanges => Set<ForkStateChange>();
+    public DbSet<DeadlockRecord> DeadlockRecords => Set<DeadlockRecord>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        // Можно добавить индексы для ускорения запросов
-        modelBuilder.Entity<PhilosopherStateChange>()
-            .HasIndex(p => p.RunId);
-
-        modelBuilder.Entity<ForkStateChange>()
-            .HasIndex(f => f.RunId);
-
-        modelBuilder.Entity<SimulationRun>()
-            .HasIndex(s => s.RunId)
-            .IsUnique();
-    }
+    //protected override void OnModelCreating(ModelBuilder modelBuilder)
+    //{
+        
+    //}
 }

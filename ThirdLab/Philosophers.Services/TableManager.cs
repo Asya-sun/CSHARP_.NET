@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
+using Philosophers.Core;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
-using Philosophers.Core;
 using Philosophers.Core.Models.Enums;
+using Philosophers.DB.Interfaces;
 using System.Diagnostics;
 
 namespace Philosophers.Services;
@@ -15,11 +16,20 @@ public class TableManager : ITableManager
     private readonly object _lockObject = new object();
     private readonly ILogger<TableManager> _logger;
     private readonly IMetricsCollector _metricsCollector;
+    private readonly ISimulationRepository _repository;
+    private readonly RunIdService _runIdService;
+    protected Guid _currentRunId;
 
-    public TableManager(ILogger<TableManager> logger, IMetricsCollector metricsCollector)
+    public TableManager(ILogger<TableManager> logger, 
+        IMetricsCollector metricsCollector,
+        ISimulationRepository repository, 
+        RunIdService runIdService)
     {
         _logger = logger;
         _metricsCollector = metricsCollector;
+        _repository = repository;
+        _runIdService = runIdService;
+        _currentRunId = runIdService.CurrentRunId;
 
         // Инициализация вилок
         _forks = new Dictionary<int, SemaphoreSlim>
@@ -82,6 +92,14 @@ public class TableManager : ITableManager
                 _forkOwners[forkId] = philosopherName;
             }
             _metricsCollector.RecordForkAcquired(forkId, philosopherName);
+            
+            await _repository.RecordForkStateAsync(
+            _runIdService.CurrentRunId,
+            forkId,
+            ForkState.InUse,
+            philosopherName,
+            _runIdService.GetCurrentSimulationTime());
+
             _logger.LogDebug("Философ {Philosopher} взял вилку {ForkId}", philosopherName, forkId);
             return true;
         }
@@ -99,6 +117,14 @@ public class TableManager : ITableManager
                     _forkOwners.Remove(forkId);
                     semaphore.Release();
                     _metricsCollector.RecordForkReleased(forkId);
+                    // _ = для fire-and-forget / не ждём завершения
+                    _ = _repository.RecordForkStateAsync(
+                        _runIdService.CurrentRunId,
+                        forkId,
+                        ForkState.Available,
+                        null, // Вилка свободна
+                        _runIdService.GetCurrentSimulationTime());
+
                     _logger.LogDebug("Философ {Philosopher} положил вилку {ForkId}", philosopherName, forkId);
                 }
             }

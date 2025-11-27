@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
+using Philosophers.DB.Interfaces;
 using Philosophers.Services;
 using System.Text;
 
@@ -14,8 +15,10 @@ public class Decartes : PhilosopherHostedService
         IPhilosopherStrategy strategy,
         IMetricsCollector metricsCollector,
         IOptions<SimulationOptions> options,
-        ILogger<Decartes> logger)
-        : base(PhilosopherName.Decartes, tableManager, strategy, metricsCollector, options, logger)
+        ILogger<Decartes> logger,
+        ISimulationRepository repository,
+        RunIdService runIdService)
+        : base(PhilosopherName.Decartes, tableManager, strategy, metricsCollector, options, logger, repository, runIdService)
     {
     }
 }

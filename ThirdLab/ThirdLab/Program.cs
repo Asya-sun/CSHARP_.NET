@@ -8,6 +8,7 @@ using Philosophers.Core.Interfaces;
 using Philosophers.Core.Models;
 using Philosophers.DB.Context;
 using Philosophers.DB.Interfaces;
+using Philosophers.DB.Repositories;
 using Philosophers.Services;
 using Philosophers.Services.Philosophers;
 using Philosophers.Strategies;
@@ -37,10 +38,12 @@ static void RegisterPhilosopherWithStrategy<TPhilosopher, TStrategy>(
         var metricsCollector = provider.GetRequiredService<IMetricsCollector>();
         var options = provider.GetRequiredService<IOptions<SimulationOptions>>();
         var logger = provider.GetRequiredService<ILogger<TPhilosopher>>();
+        var repository = provider.GetRequiredService<ISimulationRepository>();
+        var runIdService = provider.GetRequiredService<RunIdService>();
 
         // Создаем философа через рефлексию (более универсально)
         return Activator.CreateInstance(typeof(TPhilosopher),
-            tableManager, strategy, metricsCollector, options, logger) as TPhilosopher;
+            tableManager, strategy, metricsCollector, options, logger, repository, runIdService) as TPhilosopher;
     });
 }
 
@@ -52,6 +55,15 @@ var host = Host.CreateDefaultBuilder(args)
     {
         // Конфигурация
         services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
+        services.AddScoped<RunIdService>();
+
+        // бд - используем DbContextFactory для многопоточности
+        services.AddDbContextFactory<SimulationDBContext>(options =>
+            options.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection")));
+
+        // Регистрируем репозиторий как Transient
+        services.AddTransient<ISimulationRepository, SimulationRepository>();// Сервис времени и контекста
+        services.AddScoped<RunIdService>();
 
         // Основные сервисы
         services.AddSingleton<ITableManager, TableManager>();
@@ -62,35 +74,22 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<PoliteStrategy>();
 
 
+
+
         // Сервис отображения
         services.AddHostedService<DisplayService>();
-
-
         // Сервис детектор дедлоков
         services.AddHostedService<DeadlockDetector>();
+        // Сервис для управления временем симуляции
+        services.AddHostedService<SimulationHostedService>();
 
         // Философы
-        //services.AddHostedService<Plato>();
-        //services.AddHostedService<Aristotle>();
-        //services.AddHostedService<Socrates>();
-        //services.AddHostedService<Decartes>();
-        //services.AddHostedService<Kant>();
-
         RegisterPhilosopherWithStrategy<Plato, StupidStrategy>(services, PhilosopherName.Plato);
         RegisterPhilosopherWithStrategy<Aristotle, PoliteStrategy>(services, PhilosopherName.Aristotle);
         RegisterPhilosopherWithStrategy<Socrates, StupidStrategy>(services, PhilosopherName.Socrates);
         RegisterPhilosopherWithStrategy<Decartes, StupidStrategy>(services, PhilosopherName.Decartes);
         RegisterPhilosopherWithStrategy<Kant, StupidStrategy>(services, PhilosopherName.Kant);
-
-        // Сервис для управления временем симуляции
-        services.AddHostedService<SimulationHostedService>();
-
-        //services.AddDbContext<SimulationDBContext>(options =>
-        //    options.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection")));
-
-        //// Регистрируем репозиторий
-        //services.AddScoped<ISimulationRepository, SimulationRepository>();
-
+        
     })
     .ConfigureLogging(logging =>
     {
@@ -99,5 +98,24 @@ var host = Host.CreateDefaultBuilder(args)
         logging.SetMinimumLevel(LogLevel.Information);
     })
     .Build();
+
+using (var scope = host.Services.CreateScope())
+{
+    try
+    {
+        var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SimulationDBContext>>();
+        using var context = await contextFactory.CreateDbContextAsync();
+
+        // Автоматически создаст базу и таблицы если их нет
+        await context.Database.EnsureCreatedAsync();
+        Console.WriteLine("База данных и таблицы созданы успешно!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Ошибка создания базы: {ex.Message}");
+        throw;
+    }
+}
+
 
 await host.RunAsync();

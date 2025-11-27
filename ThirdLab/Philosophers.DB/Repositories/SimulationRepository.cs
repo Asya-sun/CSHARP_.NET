@@ -16,16 +16,21 @@ namespace Philosophers.DB.Repositories;
 
 public class SimulationRepository : ISimulationRepository
 {
-    private readonly SimulationDBContext _context;
+    //private readonly SimulationDBContext _context;
     private readonly ILogger<SimulationRepository> _logger;
 
-    public SimulationRepository(SimulationDBContext context, ILogger<SimulationRepository> logger)
+    private readonly IDbContextFactory<SimulationDBContext> _contextFactory;
+    //private readonly ILogger<SimulationRepository> _logger;
+
+    public SimulationRepository(IDbContextFactory<SimulationDBContext> contextFactory, ILogger<SimulationRepository> logger)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _logger = logger;
     }
+
     public async Task<Guid> StartNewRunAsync(SimulationOptions options)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var runId = Guid.NewGuid();
         var run = new SimulationRun
         {
@@ -34,8 +39,8 @@ public class SimulationRepository : ISimulationRepository
             OptionsJson = JsonSerializer.Serialize(options),
         };
 
-        _context.SimulationRuns.Add(run);
-        await _context.SaveChangesAsync();
+        context.SimulationRuns.Add(run);
+        await context.SaveChangesAsync();
 
         _logger.LogInformation("Создан новый запуск симуляции: {RunId}");
         return runId;
@@ -43,20 +48,23 @@ public class SimulationRepository : ISimulationRepository
 
     public async Task CompleteRunAsync(Guid runId)
     {
-        var run = await _context.SimulationRuns
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var run = await context.SimulationRuns
             .FirstOrDefaultAsync(r => r.RunId == runId);
 
         if (run != null)
         {
             run.FinishedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 
     public async Task<List<ForkStateChange>> GetForkStatesAtTimeAsync(Guid runId, TimeSpan simulationTime)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
         // Находим последнее состояние каждой вилки до указанного времени симуляции
-        var latestStates = await _context.ForkStateChanges
+        var latestStates = await context.ForkStateChanges
             .Where(f => f.RunId == runId && f.SimulationTime <= simulationTime)
             .GroupBy(f => f.ForkId)
             .Select(g => g.OrderByDescending(f => f.SimulationTime).ThenByDescending(f => f.Timestamp).First())
@@ -67,7 +75,8 @@ public class SimulationRepository : ISimulationRepository
 
     public async Task<List<PhilosopherStateChange>> GetPhilosopherStatesAtTimeAsync(Guid runId, TimeSpan simulationTime)
     {
-        var latestStates = await _context.PhilosopherStateChanges
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var latestStates = await context.PhilosopherStateChanges
             .Where(p => p.RunId == runId && p.SimulationTime <= simulationTime)
             .GroupBy(p => p.PhilosopherName)
             .Select(g => g.OrderByDescending(p => p.SimulationTime).ThenByDescending(p => p.Timestamp).First())
@@ -78,15 +87,18 @@ public class SimulationRepository : ISimulationRepository
 
     public async Task<SimulationRun?> GetRunAsync(Guid runId)
     {
-        return await _context.SimulationRuns
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.SimulationRuns
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.RunId == runId);
     }
 
     public async Task RecordForkStateAsync(Guid runId, int forkId, ForkState state, PhilosopherName? usedBy, TimeSpan simulationTime)
     {
+        
         try
         {
+            await using var context = await _contextFactory.CreateDbContextAsync();
             var change = new ForkStateChange
             {
                 RunId = runId,
@@ -97,8 +109,8 @@ public class SimulationRepository : ISimulationRepository
                 SimulationTime = simulationTime
             };
 
-            _context.ForkStateChanges.Add(change);
-            await _context.SaveChangesAsync();
+            context.ForkStateChanges.Add(change);
+            await context.SaveChangesAsync();
         }
         catch (Exception ex)
         {
@@ -109,8 +121,10 @@ public class SimulationRepository : ISimulationRepository
 
     public async Task RecordPhilosopherStateAsync(Guid runId, PhilosopherName name, PhilosopherState state, string action, string strategyName, TimeSpan simulationTime)
     {
+
         try
         {
+            await using var context = await _contextFactory.CreateDbContextAsync();
             var change = new PhilosopherStateChange
             {
                 RunId = runId,
@@ -122,8 +136,8 @@ public class SimulationRepository : ISimulationRepository
                 SimulationTime = simulationTime
             };
 
-            _context.PhilosopherStateChanges.Add(change);
-            await _context.SaveChangesAsync();
+            context.PhilosopherStateChanges.Add(change);
+            await context.SaveChangesAsync();
         }
         catch (Exception ex)
         {
@@ -131,5 +145,41 @@ public class SimulationRepository : ISimulationRepository
             throw;
         }
     }
+
+    public async Task RecordDeadlockAsync(Guid runId, int deadlockNumber, TimeSpan simulationTime, PhilosopherName resolvedByPhilosopher)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var deadlock = new DeadlockRecord
+            {
+                RunId = runId,
+                DeadlockNumber = deadlockNumber,
+                DetectedAt = DateTime.UtcNow,
+                SimulationTime = simulationTime,
+                ResolvedByPhilosopher = resolvedByPhilosopher
+            };
+
+            context.DeadlockRecords.Add(deadlock);
+            await context.SaveChangesAsync();
+
+            _logger.LogInformation("Записан дедлок #{DeadlockNumber} для RunId {RunId}", deadlockNumber, runId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка сохранения дедлока для RunId {RunId}", runId);
+            throw;
+        }
+    }
+
+    public async Task<List<DeadlockRecord>> GetDeadlocksAsync(Guid runId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.DeadlockRecords
+            .Where(d => d.RunId == runId)
+            .OrderBy(d => d.DeadlockNumber)
+            .ToListAsync();
+    }
+
 
 }

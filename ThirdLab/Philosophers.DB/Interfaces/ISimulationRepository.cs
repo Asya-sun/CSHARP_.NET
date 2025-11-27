@@ -17,9 +17,12 @@ public interface ISimulationRepository
     Task RecordPhilosopherStateAsync(Guid runId, PhilosopherName name, PhilosopherState state, string action, string strategyName, TimeSpan simulationTime);
     Task RecordForkStateAsync(Guid runId, int forkId, ForkState state, PhilosopherName? usedBy, TimeSpan simulationTime);
     Task CompleteRunAsync(Guid runId);
+    Task RecordDeadlockAsync(Guid runId, int deadlockNumber, TimeSpan simulationTime, PhilosopherName resolvedByPhilosopher);
+
 
     // Чтение данных
     Task<SimulationRun?> GetRunAsync(Guid runId);
     Task<List<PhilosopherStateChange>> GetPhilosopherStatesAtTimeAsync(Guid runId, TimeSpan simulationTime);
     Task<List<ForkStateChange>> GetForkStatesAtTimeAsync(Guid runId, TimeSpan simulationTime);
+    Task<List<DeadlockRecord>> GetDeadlocksAsync(Guid runId);
 }
