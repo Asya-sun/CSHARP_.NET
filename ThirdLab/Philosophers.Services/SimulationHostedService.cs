@@ -31,13 +31,15 @@ public class SimulationHostedService : BackgroundService
         _metricsCollector = metricsCollector;
         _repository = repository;
         _runIdService = runIdService;
-        _currentRunId = runIdService.CurrentRunId;
+        //_currentRunId = runIdService.CurrentRunId;
         
     }
+
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var runId = await _repository.StartNewRunAsync(_options);
+        _currentRunId = runId;
         _runIdService.StartSimulation(runId);
         _logger.LogInformation("Симуляция запущена. Длительность: {DurationSeconds} секунд, RunId: {}RunId", _options.DurationSeconds, _currentRunId);
         _currentRunId = runId;

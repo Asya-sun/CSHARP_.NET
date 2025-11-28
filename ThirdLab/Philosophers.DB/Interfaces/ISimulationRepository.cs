@@ -12,7 +12,7 @@ namespace Philosophers.DB.Interfaces;
 // интерфейс для работы с бд
 public interface ISimulationRepository
 {
-    // Запись данных
+    // запись данных
     Task<Guid> StartNewRunAsync(SimulationOptions options);
     Task RecordPhilosopherStateAsync(Guid runId, PhilosopherName name, PhilosopherState state, string action, string strategyName, TimeSpan simulationTime);
     Task RecordForkStateAsync(Guid runId, int forkId, ForkState state, PhilosopherName? usedBy, TimeSpan simulationTime);
@@ -20,7 +20,7 @@ public interface ISimulationRepository
     Task RecordDeadlockAsync(Guid runId, int deadlockNumber, TimeSpan simulationTime, PhilosopherName resolvedByPhilosopher);
 
 
-    // Чтение данных
+    // чтение данных
     Task<SimulationRun?> GetRunAsync(Guid runId);
     Task<List<PhilosopherStateChange>> GetPhilosopherStatesAtTimeAsync(Guid runId, TimeSpan simulationTime);
     Task<List<ForkStateChange>> GetForkStatesAtTimeAsync(Guid runId, TimeSpan simulationTime);

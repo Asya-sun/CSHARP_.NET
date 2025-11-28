@@ -9,17 +9,46 @@ namespace Philosophers.Services;
 
 public class RunIdService
 {
-    public Guid CurrentRunId { get; private set; }
+    public Guid _currentRunId { get; private set; }
+
+    private readonly object _lock = new object();
     private readonly Stopwatch _simulationTimer = new Stopwatch();
     private DateTime _simulationStartTime;
-
+    public Guid CurrentRunId
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (_currentRunId == Guid.Empty)
+                {
+                    // Автоматически создаем RunId если его нет
+                    _currentRunId = Guid.NewGuid();
+                    _simulationStartTime = DateTime.UtcNow;
+                    _simulationTimer.Restart();
+                    Console.WriteLine($"Auto-created RunId: {_currentRunId}");
+                }
+                return _currentRunId;
+            }
+        }
+    }
 
     public void StartSimulation(Guid runId)
     {
-        CurrentRunId = runId;
-        _simulationStartTime = DateTime.UtcNow;
-        _simulationTimer.Restart();
+        lock (_lock)
+        {
+            _currentRunId = runId;
+            _simulationStartTime = DateTime.UtcNow;
+            _simulationTimer.Restart();
+        }
     }
+
+    //public void StartSimulation(Guid runId)
+    //{
+    //    CurrentRunId = runId;
+    //    _simulationStartTime = DateTime.UtcNow;
+    //    _simulationTimer.Restart();
+    //}
 
     public TimeSpan GetCurrentSimulationTime()
     {

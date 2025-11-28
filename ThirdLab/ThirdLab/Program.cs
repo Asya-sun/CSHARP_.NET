@@ -55,7 +55,8 @@ var host = Host.CreateDefaultBuilder(args)
     {
         // Конфигурация
         services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
-        services.AddScoped<RunIdService>();
+        //services.AddScoped<RunIdService>();
+        services.AddSingleton<RunIdService>();
 
         // бд - используем DbContextFactory для многопоточности
         services.AddDbContextFactory<SimulationDBContext>(options =>

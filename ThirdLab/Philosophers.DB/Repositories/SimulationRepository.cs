@@ -16,12 +16,9 @@ namespace Philosophers.DB.Repositories;
 
 public class SimulationRepository : ISimulationRepository
 {
-    //private readonly SimulationDBContext _context;
     private readonly ILogger<SimulationRepository> _logger;
-
     private readonly IDbContextFactory<SimulationDBContext> _contextFactory;
-    //private readonly ILogger<SimulationRepository> _logger;
-
+    
     public SimulationRepository(IDbContextFactory<SimulationDBContext> contextFactory, ILogger<SimulationRepository> logger)
     {
         _contextFactory = contextFactory;
@@ -42,7 +39,7 @@ public class SimulationRepository : ISimulationRepository
         context.SimulationRuns.Add(run);
         await context.SaveChangesAsync();
 
-        _logger.LogInformation("Создан новый запуск симуляции: {RunId}");
+        _logger.LogInformation("Создан новый запуск симуляции: {RunId}", runId);
         return runId;
     }
 
@@ -131,7 +128,7 @@ public class SimulationRepository : ISimulationRepository
                 PhilosopherName = name,
                 State = state,
                 Action = action,
-                StrategyName = strategyName, // ← ДОБАВИЛИ!
+                StrategyName = strategyName,
                 Timestamp = DateTime.UtcNow,
                 SimulationTime = simulationTime
             };

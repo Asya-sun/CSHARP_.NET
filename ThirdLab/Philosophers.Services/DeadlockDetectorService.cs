@@ -100,7 +100,7 @@ public class DeadlockDetector : BackgroundService
         _tableManager.ReleaseFork(leftForkId, victim.Name);
         _tableManager.ReleaseFork(rightForkId, victim.Name);        
 
-        // Даем время другим философам взять вилки
+        // даем время другим философам взять вилки
         await Task.Delay(100);
 
         _logger.LogInformation("Дедлок разрешен! Философ {Philosopher} освободил вилки", victim.Name);
