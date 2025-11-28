@@ -31,7 +31,7 @@ public abstract class PhilosopherHostedService : BackgroundService
     protected Stopwatch _thinkingTimer = new Stopwatch();
     protected Stopwatch _eatingTimer = new Stopwatch();
     protected readonly ISimulationRepository _repository;
-    protected Guid _currentRunId;
+    protected int _currentRunId;
     private readonly RunIdService _runIdService;
 
 

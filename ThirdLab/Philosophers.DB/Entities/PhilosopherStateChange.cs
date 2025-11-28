@@ -10,7 +10,9 @@ namespace Philosophers.DB.Entities;
 public class PhilosopherStateChange
 {
     public int Id { get; set; }
-    public Guid RunId { get; set; }
+    // внешний ключ + навигационное свойство
+    public int SimulationRunId { get; set; }
+    public SimulationRun SimulationRun { get; set; } = null!;
     public PhilosopherName PhilosopherName { get; set; }
     public PhilosopherState State { get; set; }
     public string Action { get; set; } = string.Empty;
@@ -18,4 +20,5 @@ public class PhilosopherStateChange
     public DateTime Timestamp { get; set; }
     // время от начала симуляции 
     public TimeSpan SimulationTime { get; set; }
+
 }

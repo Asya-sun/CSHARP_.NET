@@ -18,7 +18,7 @@ public class TableManager : ITableManager
     private readonly IMetricsCollector _metricsCollector;
     private readonly ISimulationRepository _repository;
     private readonly RunIdService _runIdService;
-    protected Guid _currentRunId;
+    protected int _currentRunId;
 
     public TableManager(ILogger<TableManager> logger, 
         IMetricsCollector metricsCollector,

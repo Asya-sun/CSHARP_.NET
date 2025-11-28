@@ -12,7 +12,7 @@ using Philosophers.DB.Context;
 namespace Philosophers.DB.Migrations
 {
     [DbContext(typeof(SimulationDBContext))]
-    [Migration("20251127141638_InitialCreate")]
+    [Migration("20251128073209_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -42,13 +42,15 @@ namespace Philosophers.DB.Migrations
                     b.Property<int>("ResolvedByPhilosopher")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("RunId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("SimulationRunId")
+                        .HasColumnType("integer");
 
                     b.Property<TimeSpan>("SimulationTime")
                         .HasColumnType("interval");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SimulationRunId");
 
                     b.ToTable("DeadlockRecords");
                 });
@@ -64,8 +66,8 @@ namespace Philosophers.DB.Migrations
                     b.Property<int>("ForkId")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("RunId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("SimulationRunId")
+                        .HasColumnType("integer");
 
                     b.Property<TimeSpan>("SimulationTime")
                         .HasColumnType("interval");
@@ -81,6 +83,8 @@ namespace Philosophers.DB.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SimulationRunId");
+
                     b.ToTable("ForkStateChanges");
                 });
 
@@ -94,14 +98,13 @@ namespace Philosophers.DB.Migrations
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<int>("PhilosopherName")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("RunId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("SimulationRunId")
+                        .HasColumnType("integer");
 
                     b.Property<TimeSpan>("SimulationTime")
                         .HasColumnType("interval");
@@ -111,42 +114,81 @@ namespace Philosophers.DB.Migrations
 
                     b.Property<string>("StrategyName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SimulationRunId");
+
                     b.ToTable("PhilosopherStateChanges");
                 });
 
             modelBuilder.Entity("Philosophers.DB.Entities.SimulationRun", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("RunId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RunId"));
 
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OptionsJson")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("RunId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("RunId");
 
                     b.ToTable("SimulationRuns");
+                });
+
+            modelBuilder.Entity("Philosophers.DB.Entities.DeadlockRecord", b =>
+                {
+                    b.HasOne("Philosophers.DB.Entities.SimulationRun", "SimulationRun")
+                        .WithMany("DeadlockRecords")
+                        .HasForeignKey("SimulationRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SimulationRun");
+                });
+
+            modelBuilder.Entity("Philosophers.DB.Entities.ForkStateChange", b =>
+                {
+                    b.HasOne("Philosophers.DB.Entities.SimulationRun", "SimulationRun")
+                        .WithMany("ForkStateChanges")
+                        .HasForeignKey("SimulationRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SimulationRun");
+                });
+
+            modelBuilder.Entity("Philosophers.DB.Entities.PhilosopherStateChange", b =>
+                {
+                    b.HasOne("Philosophers.DB.Entities.SimulationRun", "SimulationRun")
+                        .WithMany("PhilosopherStateChanges")
+                        .HasForeignKey("SimulationRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SimulationRun");
+                });
+
+            modelBuilder.Entity("Philosophers.DB.Entities.SimulationRun", b =>
+                {
+                    b.Navigation("DeadlockRecords");
+
+                    b.Navigation("ForkStateChanges");
+
+                    b.Navigation("PhilosopherStateChanges");
                 });
 #pragma warning restore 612, 618
         }

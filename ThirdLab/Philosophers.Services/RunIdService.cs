@@ -1,58 +1,58 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 
 namespace Philosophers.Services;
 
 public class RunIdService
 {
-    public Guid _currentRunId { get; private set; }
-
+    private int _currentRunId = 0;
     private readonly object _lock = new object();
     private readonly Stopwatch _simulationTimer = new Stopwatch();
     private DateTime _simulationStartTime;
-    public Guid CurrentRunId
+    private bool _isInitialized = false;
+
+    public int CurrentRunId
     {
         get
         {
             lock (_lock)
             {
-                if (_currentRunId == Guid.Empty)
+                if (_currentRunId == 0)
                 {
-                    // Автоматически создаем RunId если его нет
-                    _currentRunId = Guid.NewGuid();
+                    // Автоматически создаем новый RunId при первом обращении
+                    _currentRunId = GenerateRunId();
                     _simulationStartTime = DateTime.UtcNow;
                     _simulationTimer.Restart();
-                    Console.WriteLine($"Auto-created RunId: {_currentRunId}");
+                    _isInitialized = true;
+                    Console.WriteLine($"Автосоздан RunId: {_currentRunId}");
                 }
                 return _currentRunId;
             }
         }
     }
 
-    public void StartSimulation(Guid runId)
+    // Метод для явного создания RunId (опционально)
+    public int CreateNewRunId()
     {
         lock (_lock)
         {
-            _currentRunId = runId;
+            _currentRunId = GenerateRunId();
             _simulationStartTime = DateTime.UtcNow;
             _simulationTimer.Restart();
+            _isInitialized = true;
+            Console.WriteLine($"Создан новый RunId: {_currentRunId}");
+            return _currentRunId;
         }
     }
 
-    //public void StartSimulation(Guid runId)
-    //{
-    //    CurrentRunId = runId;
-    //    _simulationStartTime = DateTime.UtcNow;
-    //    _simulationTimer.Restart();
-    //}
+    private int GenerateRunId()
+    {
+        // Простая генерация на основе времени
+        return Math.Abs((int)DateTime.UtcNow.Ticks);
+    }
 
     public TimeSpan GetCurrentSimulationTime()
     {
-        return _simulationTimer.Elapsed;
+        return _isInitialized ? _simulationTimer.Elapsed : TimeSpan.Zero;
     }
 
     public DateTime GetSimulationStartTime()
@@ -68,5 +68,13 @@ public class RunIdService
     public bool IsSimulationRunning()
     {
         return _simulationTimer.IsRunning;
+    }
+
+    public bool IsRunIdSet()
+    {
+        lock (_lock)
+        {
+            return _currentRunId != 0;
+        }
     }
 }

@@ -18,6 +18,7 @@ namespace Philosophers.Tests;
 public class SimulationRepositoryDbTests : IDisposable
 {
     private SqliteConnection _connection;
+    protected readonly Random _random = new Random();
 
     private (DbContextOptions<SimulationDBContext> options, IDbContextFactory<SimulationDBContext> factory) CreateInMemoryContext()
     {
@@ -63,7 +64,7 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         // подготавливаем данные с использованием TestSimulationDBContext
         using var setupContext = new TestSimulationDBContext(options);
@@ -86,16 +87,18 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
-        setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
+        var simulationRun = new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow };
+        setupContext.SimulationRuns.Add(simulationRun);
+        await setupContext.SaveChangesAsync();
 
         // Добавляем несколько состояний вилки с разным временем
         setupContext.ForkStateChanges.AddRange(
             new ForkStateChange
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 ForkId = 1,
                 State = ForkState.Available,
                 UsedBy = null,
@@ -104,7 +107,7 @@ public class SimulationRepositoryDbTests : IDisposable
             },
             new ForkStateChange
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 ForkId = 1,
                 State = ForkState.InUse,
                 UsedBy = PhilosopherName.Plato,
@@ -121,13 +124,14 @@ public class SimulationRepositoryDbTests : IDisposable
         Assert.Equal(ForkState.Available, state.State);
     }
 
+
     // проверяем, что сохраняет инфу о дедлоке в бд
     [Fact]
     public async Task RecordDeadlockAsync_ShouldSaveDeadlock()
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
         setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
@@ -148,25 +152,29 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
-        setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
+        var simulationRun = new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow };
+        setupContext.SimulationRuns.Add(simulationRun);
+        await setupContext.SaveChangesAsync();
 
         setupContext.DeadlockRecords.AddRange(
             new DeadlockRecord
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 DeadlockNumber = 1,
                 SimulationTime = TimeSpan.FromSeconds(5),
-                ResolvedByPhilosopher = PhilosopherName.Plato
+                ResolvedByPhilosopher = PhilosopherName.Plato,
+                DetectedAt = DateTime.UtcNow
             },
             new DeadlockRecord
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 DeadlockNumber = 2,
                 SimulationTime = TimeSpan.FromSeconds(15),
-                ResolvedByPhilosopher = PhilosopherName.Aristotle
+                ResolvedByPhilosopher = PhilosopherName.Aristotle,
+                DetectedAt = DateTime.UtcNow
             }
         );
         await setupContext.SaveChangesAsync();
@@ -178,13 +186,14 @@ public class SimulationRepositoryDbTests : IDisposable
         Assert.Equal(2, deadlocks[1].DeadlockNumber);
     }
 
+
     // проверяем, что получаем инфу о запуске симуляции по runId
     [Fact]
     public async Task GetRunAsync_ShouldReturnRun()
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
         var expectedRun = new SimulationRun
         {
             RunId = runId,
@@ -209,7 +218,7 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
         setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
@@ -228,7 +237,7 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
         setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
@@ -254,16 +263,18 @@ public class SimulationRepositoryDbTests : IDisposable
     {
         var (options, factory, loggerMock, repository) = PrepareStuffForTests();
 
-        var runId = Guid.NewGuid();
+        var runId = _random.Next();
 
         using var setupContext = new TestSimulationDBContext(options);
-        setupContext.SimulationRuns.Add(new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow });
+        var simulationRun = new SimulationRun { RunId = runId, StartedAt = DateTime.UtcNow };
+        setupContext.SimulationRuns.Add(simulationRun);
+        await setupContext.SaveChangesAsync();
 
         // Добавляем несколько состояний философа с разным временем
         setupContext.PhilosopherStateChanges.AddRange(
             new PhilosopherStateChange
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 PhilosopherName = PhilosopherName.Plato,
                 State = PhilosopherState.Thinking,
                 Action = "ReleaseLeftFork|ReleaseRightFork",
@@ -273,7 +284,7 @@ public class SimulationRepositoryDbTests : IDisposable
             },
             new PhilosopherStateChange
             {
-                RunId = runId,
+                SimulationRunId = runId,
                 PhilosopherName = PhilosopherName.Plato,
                 State = PhilosopherState.Hungry,
                 Action = "TakeLeftFork|TakeRightFork",
@@ -287,12 +298,12 @@ public class SimulationRepositoryDbTests : IDisposable
         // Act - Запрашиваем состояние на 10 секунде
         var statesAtTime10 = await repository.GetPhilosopherStatesAtTimeAsync(runId, TimeSpan.FromSeconds(10));
 
-        
         Assert.NotEmpty(statesAtTime10);
         var state = statesAtTime10.Single(p => p.PhilosopherName == PhilosopherName.Plato);
         Assert.Equal(PhilosopherState.Thinking, state.State);
         Assert.Equal("ReleaseLeftFork|ReleaseRightFork", state.Action);
     }
+
 }
 
 public class TestSimulationDBContext : SimulationDBContext

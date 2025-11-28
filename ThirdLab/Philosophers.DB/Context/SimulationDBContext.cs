@@ -24,67 +24,64 @@ public class SimulationDBContext : DbContext
     public DbSet<ForkStateChange> ForkStateChanges => Set<ForkStateChange>();
     public DbSet<DeadlockRecord> DeadlockRecords => Set<DeadlockRecord>();
 
-    // связать simulation run id с forkstate change и philosopher state change
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        //// SimulationRun
-        //modelBuilder.Entity<SimulationRun>(entity =>
-        //{
-        //    entity.HasKey(e => e.Id);
-        //    entity.Property(e => e.RunId).IsRequired();
-        //    entity.Property(e => e.StartedAt).IsRequired();
-        //    entity.Property(e => e.OptionsJson).IsRequired().HasMaxLength(1000);
+        // SimulationRun
+        modelBuilder.Entity<SimulationRun>(entity =>
+        {
+            entity.HasKey(e => e.RunId);
 
-        //});
+            // Связь один-ко-многим с PhilosopherStateChanges
+            entity.HasMany(e => e.PhilosopherStateChanges)
+                .WithOne(e => e.SimulationRun)
+                .HasForeignKey(e => e.SimulationRunId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        //// PhilosopherStateChange
-        //modelBuilder.Entity<PhilosopherStateChange>(entity =>
-        //{
-        //    entity.HasKey(e => e.Id);
-        //    entity.Property(e => e.RunId).IsRequired();
-        //    entity.Property(e => e.PhilosopherName).IsRequired();
-        //    entity.Property(e => e.State).IsRequired();
-        //    entity.Property(e => e.Action).IsRequired().HasMaxLength(200);
-        //    entity.Property(e => e.StrategyName).IsRequired().HasMaxLength(100);
-        //    entity.Property(e => e.Timestamp).IsRequired();
-        //    entity.Property(e => e.SimulationTime).IsRequired();
+            // Связь один-ко-многим с ForkStateChanges
+            entity.HasMany(e => e.ForkStateChanges)
+                .WithOne(e => e.SimulationRun)
+                .HasForeignKey(e => e.SimulationRunId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        //});
+            // Связь один-ко-многим с DeadlockRecords
+            entity.HasMany(e => e.DeadlockRecords)
+                .WithOne(e => e.SimulationRun)
+                .HasForeignKey(e => e.SimulationRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
-        //// ForkStateChange
-        //modelBuilder.Entity<ForkStateChange>(entity =>
-        //{
-        //    entity.HasKey(e => e.Id);
-        //    entity.Property(e => e.RunId).IsRequired();
-        //    entity.Property(e => e.ForkId).IsRequired();
-        //    entity.Property(e => e.State).IsRequired();
-        //    entity.Property(e => e.Timestamp).IsRequired();
-        //    entity.Property(e => e.SimulationTime).IsRequired();
+        // PhilosopherStateChange
+        modelBuilder.Entity<PhilosopherStateChange>(entity =>
+        {
+            entity.HasKey(e => e.Id);
 
-        //});
+            // Внешний ключ обязательный (убери nullable)
+            entity.Property(e => e.SimulationRunId).IsRequired();
 
-        //// DeadlockRecord
-        //modelBuilder.Entity<DeadlockRecord>(entity =>
-        //{
-        //    entity.HasKey(e => e.Id);
-        //    entity.Property(e => e.RunId).IsRequired();
-        //    entity.Property(e => e.DeadlockNumber).IsRequired();
-        //    entity.Property(e => e.DetectedAt).IsRequired();
-        //    entity.Property(e => e.SimulationTime).IsRequired();
-        //    entity.Property(e => e.ResolvedByPhilosopher).IsRequired();
+        });
 
-        //});
+        // ForkStateChange
+        modelBuilder.Entity<ForkStateChange>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Внешний ключ обязательный
+            entity.Property(e => e.SimulationRunId).IsRequired();
+
+        });
+
+        // DeadlockRecord
+        modelBuilder.Entity<DeadlockRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Внешний ключ обязательный
+            entity.Property(e => e.SimulationRunId).IsRequired();
+
+        });
     }
 
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        //if (!optionsBuilder.IsConfigured)
-        //{
-        //    // Это для миграций
-        //    optionsBuilder.UseNpgsql("Host=localhost;Database=PhilosopherDB;Username=postgres;Password=postgres");
-        //}
-    }
 }
 

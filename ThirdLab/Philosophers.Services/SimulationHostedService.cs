@@ -15,7 +15,7 @@ public class SimulationHostedService : BackgroundService
     private readonly IMetricsCollector _metricsCollector;
     private readonly ISimulationRepository _repository;
     private readonly RunIdService _runIdService;
-    protected Guid _currentRunId;
+    protected int _currentRunId;
 
     public SimulationHostedService(
         IHostApplicationLifetime hostApplicationLifetime,
@@ -31,26 +31,27 @@ public class SimulationHostedService : BackgroundService
         _metricsCollector = metricsCollector;
         _repository = repository;
         _runIdService = runIdService;
-        //_currentRunId = runIdService.CurrentRunId;
         
     }
 
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var runId = await _repository.StartNewRunAsync(_options);
-        _currentRunId = runId;
-        _runIdService.StartSimulation(runId);
-        _logger.LogInformation("Симуляция запущена. Длительность: {DurationSeconds} секунд, RunId: {}RunId", _options.DurationSeconds, _currentRunId);
-        _currentRunId = runId;
+        _currentRunId = _runIdService.CurrentRunId;
+        _logger.LogInformation("Симуляция запущена. Длительность: {DurationSeconds} секунд, RunId: {RunId}",
+            _options.DurationSeconds, _currentRunId);
 
+        // Создаем запись в БД
+        await _repository.StartNewRunAsync(_options, _currentRunId);
+        
+        
         await Task.Delay(TimeSpan.FromSeconds(_options.DurationSeconds), stoppingToken);
 
         _logger.LogInformation("Время симуляции истекло. Завершаем...");
 
         _runIdService.StopSimulation();
-        await _repository.CompleteRunAsync(runId);
-        _logger.LogInformation("Симуляция {RunId} завершена", runId);
+        await _repository.CompleteRunAsync(_currentRunId);
+        _logger.LogInformation("Симуляция {RunId} завершена", _currentRunId);
 
         _metricsCollector.PrintMetrics();
 

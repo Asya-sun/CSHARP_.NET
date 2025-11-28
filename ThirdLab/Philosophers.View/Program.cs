@@ -10,10 +10,10 @@ using System.Text;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-Guid runId;
+int runId;
 TimeSpan simulationTime;
 
-//dotnet run --runId 1af570b0-299b-4e8a-a1c3-f2ac602c388d --delay 4.12
+//dotnet run --runId 1303345876 --delay 4.12
 
 // Обработка аргументов
 if (args.Length == 0)
@@ -21,9 +21,9 @@ if (args.Length == 0)
     Console.Write("введите RunId: ");
     var runIdInput = Console.ReadLine();
 
-    if (!Guid.TryParse(runIdInput, out runId))
+    if (!int.TryParse(runIdInput, out runId))
     {
-        Console.WriteLine("неверный формат RunId");
+        Console.WriteLine("неверный формат RunId (должен быть числом)");
         return 1;
     }
 
@@ -32,7 +32,7 @@ if (args.Length == 0)
 
     if (!double.TryParse(timeInput, out var delaySeconds))
     {
-        Console.WriteLine("неверный формат времени ");
+        Console.WriteLine("неверный формат времени");
         return 1;
     }
 
@@ -40,9 +40,9 @@ if (args.Length == 0)
 }
 else if (args.Length == 4 && args[0] == "--runId" && args[2] == "--delay")
 {
-    if (!Guid.TryParse(args[1], out runId))
+    if (!int.TryParse(args[1], out runId))
     {
-        Console.WriteLine("неверный формат RunId");
+        Console.WriteLine("неверный формат RunId (должен быть числом)");
         return 1;
     }
 
@@ -56,8 +56,8 @@ else if (args.Length == 4 && args[0] == "--runId" && args[2] == "--delay")
 }
 else
 {
-    Console.WriteLine("Пупупу dotnet run --runId <GUID> --delay <seconds>");
-    Console.WriteLine("Exmaple dotnet run --runId 1af570b0-299b-4e8a-a1c3-f2ac602c388d --delay 4.12");
+    Console.WriteLine("Пупупу dotnet run --runId <number> --delay <seconds>");
+    Console.WriteLine("Example: dotnet run --runId 147 --delay 4.12");
     return 1;
 }
 
@@ -95,7 +95,7 @@ catch (Exception ex)
     return 1;
 }
 
-static async Task DisplaySimulationState(Guid runId, TimeSpan simulationTime, IServiceProvider serviceProvider)
+static async Task DisplaySimulationState(int runId, TimeSpan simulationTime, IServiceProvider serviceProvider)
 {
     var repository = serviceProvider.GetRequiredService<ISimulationRepository>();
 
