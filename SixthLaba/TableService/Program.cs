@@ -24,6 +24,7 @@ builder.Services.AddSwaggerGen();
 // Ваши сервисы
 builder.Services.AddSingleton<ITableManager, TableManagerService>();
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollectorService>();
+builder.Services.AddHostedService<DeadlockDetector>();
 
 // Настройка CORS (для локальной разработки)
 builder.Services.AddCors(options =>
