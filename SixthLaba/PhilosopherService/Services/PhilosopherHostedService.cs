@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Philosophers.Shared.DTO;
 using PhilosopherService.Http;
+using PhilosopherService.Interfaces;
 using PhilosopherService.Models;
 using System.Diagnostics;
 
@@ -16,6 +17,7 @@ namespace PhilosopherService.Services
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly Random _random = new();
 
+        private readonly IPhilosopherStrategy _strategy;
         private PhilosopherState _state = PhilosopherState.Thinking;
         private int _eatCount = 0;
         private int _stepsLeft = 0;
@@ -27,12 +29,14 @@ namespace PhilosopherService.Services
         public PhilosopherHostedService(
             IOptions<PhilosopherConfig> config,
             TableClient tableClient,
+            IPhilosopherStrategy strategy,
             ILogger<PhilosopherHostedService> logger,
             IHostApplicationLifetime appLifetime)
         {
             _config = config.Value;
             _tableClient = tableClient;
             _logger = logger;
+            _strategy = strategy;
             _appLifetime = appLifetime;
 
             _thinkingTimer.Start();
@@ -144,36 +148,33 @@ namespace PhilosopherService.Services
                     break;
 
                 case PhilosopherState.Hungry:
-                    if (await TryEatAsync(cancellationToken))
-                    {
-                        _hungryTimer.Stop();
+                    await _strategy.AcquireForksAsync(
+                    _config,
+                    _tableClient,
+                    cancellationToken);
+                    _hungryTimer.Stop();
 
-                        _state = PhilosopherState.Eating;
-                        _action = "Eating";
-                        _eatingTimer.Restart();
-                        _eatCount++;
+                    _state = PhilosopherState.Eating;
+                    _action = "Eating";
+                    _eatingTimer.Restart();
+                    _eatCount++;
 
-                        await UpdateStateInTableAsync();
-                        _logger.LogDebug("Философ {Name} начинает есть", _config.Name);
+                    await UpdateStateInTableAsync();
+                    _logger.LogDebug("Философ {Name} начинает есть", _config.Name);
 
-                        await EatAsync(cancellationToken);
-                        _eatingTimer.Stop();
+                    await EatAsync(cancellationToken);
+                    _eatingTimer.Stop();
 
-                        await ReleaseForksAsync();
+                    await _strategy.ReleaseForksAsync(_config, _tableClient);
 
-                        _state = PhilosopherState.Thinking;
-                        _action = "ReleaseLeftFork|ReleaseRightFork";
-                        _thinkingTimer.Restart();
+                    _state = PhilosopherState.Thinking;
+                    _action = "ReleaseLeftFork|ReleaseRightFork";
+                    _thinkingTimer.Restart();
 
-                        await UpdateStateInTableAsync();
-                        _logger.LogDebug("Философ {Name} закончил есть. Всего: {Count}",
-                            _config.Name, _eatCount);
-                    }
-                    else
-                    {
-                        _action = "WaitingForForks";
-                        await Task.Delay(100, cancellationToken);
-                    }
+                    await UpdateStateInTableAsync();
+                    _logger.LogDebug("Философ {Name} закончил есть. Всего: {Count}",
+                        _config.Name, _eatCount);
+
                     break;
             }
         }

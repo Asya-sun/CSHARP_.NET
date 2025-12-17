@@ -8,5 +8,6 @@
         public int RightForkId { get; init; }
         public string TableServiceUrl { get; init; } = "http://localhost:5178";
         public int SimulationDurationMinutes { get; init; }
+        public string Strategy { get; init; } = "polite";
     }
 }

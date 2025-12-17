@@ -30,6 +30,8 @@ services:
       - RIGHT_FORK_ID=5
       - TABLE_SERVICE_URL=http://table-service:8080
       - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+
     depends_on:
       table-service:
         condition: service_healthy
@@ -48,6 +50,7 @@ services:
       - RIGHT_FORK_ID=1
       - TABLE_SERVICE_URL=http://table-service:8080
       - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
     depends_on:
       table-service:
         condition: service_healthy
@@ -66,6 +69,7 @@ services:
       - RIGHT_FORK_ID=2
       - TABLE_SERVICE_URL=http://table-service:8080
       - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
     depends_on:
       table-service:
         condition: service_healthy
@@ -84,6 +88,7 @@ services:
       - RIGHT_FORK_ID=3
       - TABLE_SERVICE_URL=http://table-service:8080
       - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
     depends_on:
       table-service:
         condition: service_healthy
@@ -102,6 +107,7 @@ services:
       - RIGHT_FORK_ID=4
       - TABLE_SERVICE_URL=http://table-service:8080
       - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
     depends_on:
       table-service:
         condition: service_healthy

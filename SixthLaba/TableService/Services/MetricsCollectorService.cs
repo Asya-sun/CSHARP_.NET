@@ -93,29 +93,10 @@ namespace TableService.Services
 
             PrintThroughputMetrics(sb, totalTime);
             sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
-            PrintWaitingTimeMetrics(sb);
-            sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
             PrintForkUtilizationMetrics(sb, totalTime);
-            sb.AppendLine("╟──────────────────────────────────────────────────────────────────────╢");
-            PrintDeadlockMetrics(sb, totalTime);
             sb.AppendLine("╚══════════════════════════════════════════════════════════════════════╝");
 
             _logger.LogInformation("{Metrics}", sb.ToString());
-        }
-
-        private void PrintDeadlockMetrics(StringBuilder sb, TimeSpan totalTime)
-        {
-            sb.AppendLine("║ ДЕДЛОКИ:");
-            if (_deadlockCount > 0)
-            {
-                sb.AppendLine($"║   Обнаружено дедлоков: {_deadlockCount}");
-                double deadlocksPerMinute = _deadlockCount / (totalTime.TotalMinutes);
-                sb.AppendLine($"║   Частота: {deadlocksPerMinute:F2} дедлоков/минуту");
-            }
-            else
-            {
-                sb.AppendLine($"║   Дедлоков не обнаружено");
-            }
         }
 
         private void PrintThroughputMetrics(StringBuilder sb, TimeSpan totalTime)
@@ -142,48 +123,6 @@ namespace TableService.Services
             }
         }
 
-        private void PrintWaitingTimeMetrics(StringBuilder sb)
-        {
-            sb.AppendLine("║ ВРЕМЯ ОЖИДАНИЯ (Hungry state):");
-
-            TimeSpan maxWaitingTime = TimeSpan.Zero;
-            string maxWaitingPhilosopher = string.Empty;
-            double totalAverageWaiting = 0;
-            int philosophersWithWaiting = 0;
-
-            foreach (var philosopherId in _eatCount.Keys)
-            {
-                if (_waitingTimes.ContainsKey(philosopherId) && _waitingTimes[philosopherId].Any())
-                {
-                    var waitingTimes = _waitingTimes[philosopherId].ToList();
-                    var average = TimeSpan.FromMilliseconds(waitingTimes.Average(t => t.TotalMilliseconds));
-                    var max = waitingTimes.Max();
-
-                    sb.AppendLine($"║   {philosopherId,-15}: ср. {average.TotalMilliseconds,6:F0} мс, макс {max.TotalMilliseconds,6:F0} мс");
-
-                    totalAverageWaiting += average.TotalMilliseconds;
-                    philosophersWithWaiting++;
-
-                    if (max > maxWaitingTime)
-                    {
-                        maxWaitingTime = max;
-                        maxWaitingPhilosopher = philosopherId;
-                    }
-                }
-                else
-                {
-                    sb.AppendLine($"║   {philosopherId,-15}: не было периодов ожидания");
-                }
-            }
-
-            if (philosophersWithWaiting > 0)
-            {
-                double overallAverage = totalAverageWaiting / philosophersWithWaiting;
-                sb.AppendLine("║");
-                sb.AppendLine($"║   СРЕДНЕЕ ПО ВСЕМ: {overallAverage,8:F0} мс");
-                sb.AppendLine($"║   МАКСИМАЛЬНОЕ: {maxWaitingTime.TotalMilliseconds,8:F0} мс ({maxWaitingPhilosopher})");
-            }
-        }
 
         private void PrintForkUtilizationMetrics(StringBuilder sb, TimeSpan totalTime)
         {

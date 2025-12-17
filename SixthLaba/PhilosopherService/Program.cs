@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Options;
 using PhilosopherService.Http;
+using PhilosopherService.Interfaces;
 using PhilosopherService.Models;
+using PhilosopherService.Models.Strategies;
 using PhilosopherService.Services;
 using Polly;
 using Polly.Extensions.Http;
@@ -15,11 +17,16 @@ var config = new PhilosopherConfig
     LeftForkId = int.Parse(Environment.GetEnvironmentVariable("LEFT_FORK_ID") ?? "1"),
     RightForkId = int.Parse(Environment.GetEnvironmentVariable("RIGHT_FORK_ID") ?? "2"),
     TableServiceUrl = Environment.GetEnvironmentVariable("TABLE_SERVICE_URL") ?? "http://localhost:5178",
-    SimulationDurationMinutes = int.Parse(Environment.GetEnvironmentVariable("SIMULATION_DURATION_MINUTES") ?? "1")
+    SimulationDurationMinutes = int.Parse(Environment.GetEnvironmentVariable("SIMULATION_DURATION_MINUTES") ?? "1"),
+    Strategy = Environment.GetEnvironmentVariable("PHILOSOPHER_STRATEGY") ?? "polite"
 };
+builder.Services.AddSingleton<PoliteStrategy>();
+
 
 // Регистрируем конфигурацию
-builder.Services.AddSingleton(Options.Create(config));
+builder.Services.AddSingleton(config);
+builder.Services.AddSingleton<IOptions<PhilosopherConfig>>(Options.Create(config));
+
 
 // Настраиваем HttpClient для TableClient
 builder.Services.AddHttpClient<TableClient>(client =>
@@ -28,6 +35,24 @@ builder.Services.AddHttpClient<TableClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 })
 .AddPolicyHandler(GetRetryPolicy());
+
+
+
+// выбираем и регистрируем стратегию
+builder.Services.AddSingleton<IPhilosopherStrategy>(sp =>
+{
+    var cfg = sp.GetRequiredService<PhilosopherConfig>();
+    var logger = sp.GetRequiredService<ILogger<Program>>();
+
+    return cfg.Strategy.ToLower() switch
+    {
+        "polite" => sp.GetRequiredService<PoliteStrategy>(),
+        
+        _ => throw new InvalidOperationException(
+            $"Неизвестная стратегия философа: {cfg.Strategy}")
+    };
+});
+
 
 // Регистрируем сервисы
 builder.Services.AddHostedService<PhilosopherHostedService>();
@@ -52,9 +77,7 @@ app.MapGet("/health", () => new
 {
     Status = "Healthy",
     Philosopher = config.Name,
-    Id = config.PhilosopherId,
-    Forks = $"{config.LeftForkId}/{config.RightForkId}",
-    Eaten = "N/A" // Можно добавить счетчик
+    Id = config.PhilosopherId
 });
 
 app.MapGet("/", () => $"Philosopher {config.Name} is running!");
