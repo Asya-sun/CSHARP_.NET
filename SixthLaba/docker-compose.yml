@@ -1,0 +1,115 @@
+﻿version: '3.8'
+
+services:
+  # 1. Table Service
+  table-service:
+    build:
+      context: .
+      dockerfile: TableService/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - PHILOSOPHER_COUNT=5
+      - TABLE_SERVICE_URL=http://table-service:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 2. 1 Платон
+  philosopher-plato:
+    build:
+      context: .
+      dockerfile: PhilosopherService/Dockerfile
+    environment:
+      - PHILOSOPHER_ID=philosopher-1
+      - PHILOSOPHER_NAME=Платон
+      - LEFT_FORK_ID=1
+      - RIGHT_FORK_ID=5
+      - TABLE_SERVICE_URL=http://table-service:8080
+      - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+
+    depends_on:
+      table-service:
+        condition: service_healthy
+    # ports:
+    #   - "8081:8081"
+
+  # 3. 2 Аристотель
+  philosopher-aristotle:
+    build:
+      context: .
+      dockerfile: PhilosopherService/Dockerfile
+    environment:
+      - PHILOSOPHER_ID=philosopher-2
+      - PHILOSOPHER_NAME=Аристотель
+      - LEFT_FORK_ID=2
+      - RIGHT_FORK_ID=1
+      - TABLE_SERVICE_URL=http://table-service:8080
+      - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+    depends_on:
+      table-service:
+        condition: service_healthy
+    # ports:
+    #   - "8082:8081"
+
+  # 4. 3 Сократ
+  philosopher-socrates:
+    build:
+      context: .
+      dockerfile: PhilosopherService/Dockerfile
+    environment:
+      - PHILOSOPHER_ID=philosopher-3
+      - PHILOSOPHER_NAME=Сократ
+      - LEFT_FORK_ID=3
+      - RIGHT_FORK_ID=2
+      - TABLE_SERVICE_URL=http://table-service:8080
+      - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+    depends_on:
+      table-service:
+        condition: service_healthy
+    # ports:
+    #   - "8083:8081"
+
+  # 5. 4 Декарт
+  philosopher-descartes:
+    build:
+      context: .
+      dockerfile: PhilosopherService/Dockerfile
+    environment:
+      - PHILOSOPHER_ID=philosopher-4
+      - PHILOSOPHER_NAME=Декарт
+      - LEFT_FORK_ID=4
+      - RIGHT_FORK_ID=3
+      - TABLE_SERVICE_URL=http://table-service:8080
+      - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+    depends_on:
+      table-service:
+        condition: service_healthy
+    # ports:
+    #   - "8084:8081"
+
+  # 6. 5 Кант
+  philosopher-kant:
+    build:
+      context: .
+      dockerfile: PhilosopherService/Dockerfile
+    environment:
+      - PHILOSOPHER_ID=philosopher-5
+      - PHILOSOPHER_NAME=Кант
+      - LEFT_FORK_ID=5
+      - RIGHT_FORK_ID=4
+      - TABLE_SERVICE_URL=http://table-service:8080
+      - SIMULATION_DURATION_MINUTES=5
+      - PHILOSOPHER_STRATEGY=polite
+    depends_on:
+      table-service:
+        condition: service_healthy
+    # ports:
+    #   - "8085:8081"
