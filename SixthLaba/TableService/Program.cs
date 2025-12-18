@@ -16,7 +16,6 @@ var config = new TableConfig
 builder.Services.AddSingleton(Options.Create(config));
 
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -26,7 +25,6 @@ builder.Services.AddSingleton<ITableManager, TableManagerService>();
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollectorService>();
 builder.Services.AddHostedService<DeadlockDetector>();
 
-// Настройка CORS (для локальной разработки)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -39,7 +37,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

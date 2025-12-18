@@ -52,7 +52,6 @@ namespace TableService.Services
             _philosopherForks = new Dictionary<string, (int, int)>();
         }
 
-        // Регистрация философа
         public bool RegisterPhilosopher(string philosopherId, string name, int leftForkId, int rightForkId)
         {
             lock (_lockObject)
@@ -63,14 +62,12 @@ namespace TableService.Services
                     return false;
                 }
 
-                // Проверяем, что вилки существуют (1-5)
                 if (!_forks.ContainsKey(leftForkId) || !_forks.ContainsKey(rightForkId))
                 {
                     _logger.LogError("Некорректные ID вилок: {Left}/{Right}", leftForkId, rightForkId);
                     return false;
                 }
 
-                // Создаем философа
                 _philosophers[philosopherId] = new Philosopher(philosopherId, name)
                 {
                     Id = philosopherId,
@@ -80,7 +77,6 @@ namespace TableService.Services
                     EatCount = 0
                 };
 
-                // Сохраняем информацию о вилках философа
                 _philosopherForks[philosopherId] = (leftForkId, rightForkId);
 
                 _logger.LogInformation("Зарегистрирован философ {Name} (ID: {Id}), вилки: L={Left}, R={Right}",
@@ -124,7 +120,6 @@ namespace TableService.Services
                 return false;
             }
 
-            // Пытаемся взять вилку без ожидания (timeout = 0)
             bool acquired = await semaphore.WaitAsync(0, cancellationToken);
 
             if (acquired)
@@ -239,7 +234,6 @@ namespace TableService.Services
                     philosopher.State = state;
                     philosopher.Action = action;
 
-                    // Если философ начал есть - увеличиваем счетчик
                     if (state == PhilosopherState.Eating)
                     {
                         philosopher.EatCount++;
@@ -255,7 +249,6 @@ namespace TableService.Services
             }
         }
 
-        // Дополнительный метод для получения философа по ID
         public Philosopher? GetPhilosopher(string philosopherId)
         {
             lock (_lockObject)
@@ -264,7 +257,6 @@ namespace TableService.Services
             }
         }
 
-        // Дополнительный метод для проверки регистрации
         public bool IsPhilosopherRegistered(string philosopherId)
         {
             lock (_lockObject)
