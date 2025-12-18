@@ -1,4 +1,5 @@
 ﻿using CoordinatorService.Interfaces;
+using CoordinatorService.Models;
 using MassTransit;
 using Philosophers.Shared;
 using Philosophers.Shared.Events;
@@ -9,17 +10,15 @@ public class Coordinator : ICoordinator
 {
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<Coordinator> _logger;
-
-    private bool _someoneEating = false;
-    private readonly Queue<string> _queue = new();
-
-    private readonly object _lock = new();
+    private readonly CoordinatorState _state;
 
     public Coordinator(
         IPublishEndpoint publishEndpoint,
+        CoordinatorState state,
         ILogger<Coordinator> logger)
     {
         _publishEndpoint = publishEndpoint;
+        _state = state;
         _logger = logger;
     }
 
@@ -27,20 +26,20 @@ public class Coordinator : ICoordinator
     {
         bool canEatImmediately;
 
-        lock (_lock)
+        lock (_state.Lock)
         {
-            canEatImmediately = !_someoneEating;
+            canEatImmediately = !_state.SomeoneEating;
 
             if (canEatImmediately)
             {
-                _someoneEating = true;
+                _state.SomeoneEating = true;
                 _logger.LogInformation(
                     "CoordinatorService: разрешаю есть философу {Id}",
                     philosopherId);
             }
             else
             {
-                _queue.Enqueue(philosopherId);
+                _state.Queue.Enqueue(philosopherId);
                 _logger.LogInformation(
                     "CoordinatorService: философ {Id} добавлен в очередь",
                     philosopherId);
@@ -49,7 +48,6 @@ public class Coordinator : ICoordinator
 
         if (canEatImmediately)
         {
-            // Publish выполняется вне lock
             await _publishEndpoint.Publish(new PhilosopherAllowedToEat
             {
                 PhilosopherId = philosopherId
@@ -61,18 +59,18 @@ public class Coordinator : ICoordinator
     {
         string? next = null;
 
-        lock (_lock)
+        lock (_state.Lock)
         {
-            if (_queue.Any())
+            if (_state.Queue.Any())
             {
-                next = _queue.Dequeue();
+                next = _state.Queue.Dequeue();
                 _logger.LogInformation(
                     "CoordinatorService: следующий философ {Id}",
                     next);
             }
             else
             {
-                _someoneEating = false;
+                _state.SomeoneEating = false;
                 _logger.LogInformation(
                     "CoordinatorService: стол снова свободен");
             }
@@ -80,7 +78,6 @@ public class Coordinator : ICoordinator
 
         if (next != null)
         {
-            // Publish выполняется вне lock
             await _publishEndpoint.Publish(new PhilosopherAllowedToEat
             {
                 PhilosopherId = next

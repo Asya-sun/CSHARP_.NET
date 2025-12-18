@@ -11,7 +11,7 @@ using System.Diagnostics;
 
 namespace PhilosopherService.Services
 {
-    public class PhilosopherHostedService : BackgroundService
+    public class PhilosopherHostedService : BackgroundService, IPhilosopherService
     {
         private readonly PhilosopherConfig _config;
         private readonly TableClient _tableClient;
@@ -36,7 +36,7 @@ namespace PhilosopherService.Services
 
         // Для ожидания разрешения от координатора
         private TaskCompletionSource<bool>? _allowedToEatTcs;
-        internal void SetAllowedToEat()
+        public void SetAllowedToEat()
         {
             _allowedToEatTcs?.TrySetResult(true);
         }
@@ -262,6 +262,16 @@ namespace PhilosopherService.Services
             {
                 _logger.LogError(ex, "Ошибка обновления состояния философа {Name}", _config.Name);
             }
+        }
+
+        public string GetPhilosopherId()
+        {
+            return _config.PhilosopherId;
+        }
+
+        public string GetPhilosopherName()
+        {
+            return _config.Name;
         }
     }
 

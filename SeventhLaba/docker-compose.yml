@@ -1,7 +1,7 @@
 ﻿version: '3.8'
 
 services:
-  # 1. Table Service
+  # Table Service
   table-service:
     build:
       context: .
@@ -35,7 +35,7 @@ services:
       retries: 5
 
 
-    # 2. Coordinator Service
+    # Coordinator Service
   coordinator-service:
     build:
       context: .
@@ -49,9 +49,9 @@ services:
       rabbitmq:
         condition: service_healthy
     ports:
-      - "8090:80"
+      - "8090:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5

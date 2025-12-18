@@ -15,4 +15,7 @@ RUN dotnet publish "CoordinatorService.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+RUN apt-get update || true \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
 ENTRYPOINT ["dotnet", "CoordinatorService.dll"]

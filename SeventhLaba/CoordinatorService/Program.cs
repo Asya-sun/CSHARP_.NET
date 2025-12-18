@@ -1,11 +1,16 @@
-using CoordinatorService.Interfaces;
+﻿using CoordinatorService.Interfaces;
 using CoordinatorService.Services;
+using CoordinatorService.Models;
 using CoordinatorService.Consumers;
 using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<ICoordinator, Coordinator>();
+
+// CoordinatorState будет создаваться 1 раз 
+// scoped живет в рамках 1 сообщения (вроде)
+builder.Services.AddSingleton<CoordinatorState>();
+builder.Services.AddScoped<ICoordinator, Coordinator>();
 
 builder.Services.AddMassTransit(x =>
 {

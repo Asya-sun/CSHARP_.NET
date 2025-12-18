@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using PhilosopherService.Http;
 using PhilosopherService.Interfaces;
 using PhilosopherService.Models;
+using PhilosopherService.Consumers;
 using PhilosopherService.Models.Strategies;
 using PhilosopherService.Services;
 using Polly;
@@ -21,8 +22,23 @@ var config = new PhilosopherConfig
     SimulationDurationMinutes = int.Parse(Environment.GetEnvironmentVariable("SIMULATION_DURATION_MINUTES") ?? "1"),
     Strategy = Environment.GetEnvironmentVariable("PHILOSOPHER_STRATEGY") ?? "polite"
 };
-builder.Services.AddSingleton<PoliteStrategy>();
 
+
+// выбираем и регистрируем стратегию
+builder.Services.AddSingleton<PoliteStrategy>();
+builder.Services.AddSingleton<IPhilosopherStrategy>(sp =>
+{
+    var cfg = sp.GetRequiredService<PhilosopherConfig>();
+    var logger = sp.GetRequiredService<ILogger<Program>>();
+
+    return cfg.Strategy.ToLower() switch
+    {
+        "polite" => sp.GetRequiredService<PoliteStrategy>(),
+
+        _ => throw new InvalidOperationException(
+            $"Неизвестная стратегия философа: {cfg.Strategy}")
+    };
+});
 
 // Регистрируем конфигурацию
 builder.Services.AddSingleton(config);
@@ -38,25 +54,16 @@ builder.Services.AddHttpClient<TableClient>(client =>
 .AddPolicyHandler(GetRetryPolicy());
 
 
-
-// выбираем и регистрируем стратегию
-builder.Services.AddSingleton<IPhilosopherStrategy>(sp =>
-{
-    var cfg = sp.GetRequiredService<PhilosopherConfig>();
-    var logger = sp.GetRequiredService<ILogger<Program>>();
-
-    return cfg.Strategy.ToLower() switch
-    {
-        "polite" => sp.GetRequiredService<PoliteStrategy>(),
-        
-        _ => throw new InvalidOperationException(
-            $"Неизвестная стратегия философа: {cfg.Strategy}")
-    };
-});
-
-
 // Регистрируем сервисы
-builder.Services.AddHostedService<PhilosopherHostedService>();
+//builder.Services.AddHostedService<PhilosopherHostedService>();
+builder.Services.AddSingleton<PhilosopherHostedService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PhilosopherHostedService>());
+
+// Регистрируем интерфейс
+builder.Services.AddSingleton<IPhilosopherService>(sp =>
+    sp.GetRequiredService<PhilosopherHostedService>());
+
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<PhilosopherAllowedToEatConsumer>();
