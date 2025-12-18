@@ -5,7 +5,6 @@ namespace TableService.Interfaces
 {
     public interface ITableManager
     {
-        // Новый метод для регистрации
         bool RegisterPhilosopher(string philosopherId, string name, int leftForkId, int rightForkId);
         void UnregisterPhilosopher(string philosopherId);
 
