@@ -23,12 +23,12 @@ var config = new PhilosopherConfig
 builder.Services.AddSingleton<PoliteStrategy>();
 
 
-// Регистрируем конфигурацию
+// регистрируем конфигурацию
 builder.Services.AddSingleton(config);
 builder.Services.AddSingleton<IOptions<PhilosopherConfig>>(Options.Create(config));
 
 
-// Настраиваем HttpClient для TableClient
+// настраиваем HttpClient для TableClient
 builder.Services.AddHttpClient<TableClient>(client =>
 {
     client.BaseAddress = new Uri(config.TableServiceUrl);
@@ -54,7 +54,7 @@ builder.Services.AddSingleton<IPhilosopherStrategy>(sp =>
 });
 
 
-// Регистрируем сервисы
+// регистрируем сервисы
 builder.Services.AddHostedService<PhilosopherHostedService>();
 
 builder.Services.AddControllers();
