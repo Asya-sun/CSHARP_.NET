@@ -2,8 +2,10 @@
 {
     public class CoordinatorState
     {
-        public bool SomeoneEating { get; set; } = false;
-        public Queue<string> Queue { get; } = new();
+        public Dictionary<string, PhilosopherInfo> Philosophers { get; } = new();
+        public Dictionary<int, ForkInfo> Forks { get; } = new();
+
+        public Queue<string> HungryQueue { get; } = new();
         public object Lock { get; } = new();
     }
 }

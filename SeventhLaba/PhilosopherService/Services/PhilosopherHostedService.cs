@@ -69,6 +69,8 @@ namespace PhilosopherService.Services
                 _config.Name, _config.PhilosopherId, _config.SimulationDurationMinutes,
                 _config.LeftForkId, _config.RightForkId);
 
+                // Регистрация в Coordinator
+                await RegisterWithCoordinator(stoppingToken);
                 // Регистрация в TableService
                 await RegisterWithTableAsync(stoppingToken);
 
@@ -131,7 +133,17 @@ namespace PhilosopherService.Services
             }
         }
 
-
+        private async Task RegisterWithCoordinator(CancellationToken ct)
+        {
+            var request = new PhilosopherRegistered
+            {
+                PhilosopherId = _config.PhilosopherId,
+                Name = _config.Name,
+                LeftForkId = _config.LeftForkId,
+                RightForkId = _config.RightForkId
+            };
+            await _bus.Publish(request);
+        }
         private async Task RegisterWithTableAsync(CancellationToken ct)
         {
             var request = new RegisterPhilosopherRequest(
@@ -231,6 +243,9 @@ namespace PhilosopherService.Services
 
                     _state = PhilosopherState.Hungry;
                     _hungryTimer.Restart();
+                    _logger.LogDebug(
+                        "Философ {Name} ({Id}) перешел в состояние Hungry. Ожидание вилок: L={LeftFork}, R={RightFork}",
+                        _config.Name, _config.PhilosopherId, _config.LeftForkId, _config.RightForkId);
                     _action = "TakeLeftFork|TakeRightFork";
 
                     await UpdateStateInTableAsync();
@@ -247,14 +262,16 @@ namespace PhilosopherService.Services
                     bool gotPermission = false;
                     try
                     {
+                        _logger.LogDebug(
+                            "Философ {Name} ожидает разрешения от координатора...",
+                            _config.Name);
                         await _allowedToEatTcs.Task.WaitAsync(cancellationToken);
+                        
                         gotPermission = true;
                     }
                     catch (OperationCanceledException)
                     {
-                        _logger.LogInformation("Философ {Name} не получил разрешения есть — отмена", _config.Name);
-                        _logger.LogInformation("У философа {Name} сработал cancellationToken, но он не успел получить вилку.\n Шлем координатору, что вилка нам больше не понадобится", _config.Name);
-
+                        _logger.LogInformation("Философ {Name} не получил разрешения есть — отмена\nУ философа {Name} сработал cancellationToken, но он не успел получить вилку.\n Шлем координатору, что вилка нам больше не понадобится", _config.Name, _config.Name);
 
                         //// наверное тут можно ничего  и не обновлять...
                         //_state = PhilosopherState.Thinking;
@@ -266,12 +283,18 @@ namespace PhilosopherService.Services
 
                     if (gotPermission)
                     {
+                        _logger.LogInformation(
+                            "Философ {Name} получил разрешение на еду от координатора",
+                            _config.Name);
 
                         await _strategy.AcquireForksAsync(
                                     _config,
                                     _tableClient,
                                     cancellationToken);
                         _hungryTimer.Stop();
+                        _logger.LogDebug(
+                            "Философ {Name} успешно захватил обе вилки. Переходит в состояние Eating",
+                            _config.Name);
 
 
                         _state = PhilosopherState.Eating;

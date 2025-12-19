@@ -1,5 +1,6 @@
 ﻿using CoordinatorService.Interfaces;
 using CoordinatorService.Models;
+using CoordinatorService.Models.Enums;
 using MassTransit;
 using Microsoft.Extensions.Options;
 using Philosophers.Shared;
@@ -17,6 +18,7 @@ public class Coordinator : ICoordinator
     private readonly CoordinatorState _state;
     private int _finishedPhilosophers = 0;
     private readonly IHostApplicationLifetime _appLifetime;
+    private int _forkCount = 0;
 
     public Coordinator(IOptions<CoordinatorConfig> config,
         IPublishEndpoint publishEndpoint,
@@ -29,34 +31,87 @@ public class Coordinator : ICoordinator
         _state = state;
         _logger = logger;
         _appLifetime = appLifetime;
+
+        _forkCount = _config.PhilosophersCount == 1 ? 2 : _config.PhilosophersCount;
+        for (int i = 0; i < _forkCount; i++)
+        {
+            //state.Forks[i] = new ForkInfo{ ForkId = i };
+            if (!_state.Forks.ContainsKey(i))
+                _state.Forks[i] = new ForkInfo { ForkId = i };
+        }
+    }
+
+    public Task RegisterAsync(
+    string id,
+    string name,
+    int leftFork,
+    int rightFork)
+    {
+        lock (_state.Lock)
+        {
+            _state.Philosophers[id] = new PhilosopherInfo
+            {
+                Id = id,
+                Name = name,
+                LeftForkId = leftFork,
+                RightForkId = rightFork,
+                Status = PhilosopherState.Thinking
+            };
+
+            _logger.LogInformation(
+                "Coordinator: зарегистрирован философ {Name} (ID: {Id}) с вилками L={LeftFork}, R={RightFork}. Всего философов: {Count}",
+                name, id, leftFork, rightFork, _state.Philosophers.Count);
+
+            if (!_state.Forks.ContainsKey(leftFork))
+                _state.Forks[leftFork] = new ForkInfo { ForkId = leftFork };
+
+            if (!_state.Forks.ContainsKey(rightFork))
+                _state.Forks[rightFork] = new ForkInfo { ForkId = rightFork };
+        }
+        return Task.CompletedTask;
     }
 
     public async Task RequestToEatAsync(string philosopherId)
     {
-        bool canEatImmediately;
+        bool allowed = false;
+        _logger.LogDebug(
+            "Coordinator: получен запрос на еду от философа {PhilosopherId}",
+            philosopherId);
 
         lock (_state.Lock)
         {
-            canEatImmediately = !_state.SomeoneEating;
 
-            if (canEatImmediately)
+            var philosopher = _state.Philosophers[philosopherId];
+            philosopher.Status = PhilosopherState.Hungry;
+
+            var leftFork = _state.Forks[philosopher.LeftForkId];
+            var rightFork = _state.Forks[philosopher.RightForkId];
+
+            if (leftFork.IsAvailable && rightFork.IsAvailable)
             {
-                _state.SomeoneEating = true;
-                _logger.LogInformation(
-                    "CoordinatorService: разрешаю есть философу {Id}",
-                    philosopherId);
+                // резервирование вилок
+                leftFork.IsAvailable = false;
+                rightFork.IsAvailable = false;
+                leftFork.UsedByPhilosopherId = philosopherId;
+                rightFork.UsedByPhilosopherId = philosopherId;
+
+                philosopher.Status = PhilosopherState.Eating;
+                allowed = true;
             }
             else
             {
-                _state.Queue.Enqueue(philosopherId);
-                _logger.LogInformation(
-                    "CoordinatorService: философ {Id} добавлен в очередь",
-                    philosopherId);
+                _state.HungryQueue.Enqueue(philosopherId);
+                _logger.LogDebug(
+                    "Coordinator: философ {PhilosopherId} добавлен в очередь голодных. Размер очереди: {QueueSize}",
+                    philosopherId, _state.HungryQueue.Count);
             }
         }
 
-        if (canEatImmediately)
+        if (allowed)
         {
+            _logger.LogDebug(
+                "Coordinator: получен запрос на еду от философа {PhilosopherId}",
+                philosopherId);
             await _publishEndpoint.Publish(new PhilosopherAllowedToEat
             {
                 PhilosopherId = philosopherId
@@ -66,77 +121,157 @@ public class Coordinator : ICoordinator
 
     public async Task FinishedEatingAsync(string philosopherId)
     {
-        string? next = null;
+        List<string> newlyAllowed = new();
+        
+        
+        _logger.LogDebug(
+            "Coordinator: философ {PhilosopherId} закончил есть. Освобождаем вилки...",
+            philosopherId);
 
         lock (_state.Lock)
         {
-            if (_state.Queue.Any())
+            var philosopher = _state.Philosophers[philosopherId];
+            philosopher.Status = PhilosopherState.Thinking;
+
+            var leftFork = _state.Forks[philosopher.LeftForkId];
+            var rightFork = _state.Forks[philosopher.RightForkId];
+
+            _logger.LogInformation(
+                "Coordinator: вилки L={LeftFork}, R={RightFork} освобождены философом {PhilosopherId}",
+                philosopher.LeftForkId, philosopher.RightForkId, philosopherId);
+
+            leftFork.IsAvailable = true;
+            rightFork.IsAvailable = true;
+            leftFork.UsedByPhilosopherId = null;
+            rightFork.UsedByPhilosopherId = null;
+
+            // пробуем разбудить очередь
+            int count = _state.HungryQueue.Count;
+
+            for (int i = 0; i < count; i++)
             {
-                next = _state.Queue.Dequeue();
-                _logger.LogInformation(
-                    "CoordinatorService: следующий философ {Id}",
-                    next);
-            }
-            else
-            {
-                _state.SomeoneEating = false;
-                _logger.LogInformation(
-                    "CoordinatorService: стол снова свободен");
+                var nextId = _state.HungryQueue.Dequeue();
+                var next = _state.Philosophers[nextId];
+
+                var lf = _state.Forks[next.LeftForkId];
+                var rf = _state.Forks[next.RightForkId];
+
+                _logger.LogDebug(
+                    "Coordinator: пробуждаем философа {NextId} из очереди. Доступные вилки: L={LeftForkAvailable}, R={RightForkAvailable}",
+                    nextId, lf.IsAvailable, rf.IsAvailable);
+                if (lf.IsAvailable && rf.IsAvailable)
+                {
+                    lf.IsAvailable = false;
+                    rf.IsAvailable = false;
+                    lf.UsedByPhilosopherId = nextId;
+                    rf.UsedByPhilosopherId = nextId;
+
+                    next.Status = PhilosopherState.Eating;
+                    newlyAllowed.Add(nextId);
+                }
+                else
+                {
+                    _state.HungryQueue.Enqueue(nextId);
+                }
             }
         }
 
-        if (next != null)
+        foreach (var id in newlyAllowed)
         {
             await _publishEndpoint.Publish(new PhilosopherAllowedToEat
             {
-                PhilosopherId = next
+                PhilosopherId = id
             });
         }
     }
 
 
+
     public async Task PhilosopherExitingAsync(string philosopherId)
     {
-        string? next = null;
-
+        List<string> newlyAllowed = new();
         var finished = Interlocked.Increment(ref _finishedPhilosophers);
 
+        _logger.LogInformation(
+            "Coordinator: получено уведомление о выходе философа {PhilosopherId}",
+            philosopherId);
 
         lock (_state.Lock)
         {
-            // удаляем философа из очереди, если он там есть
-            var queue = new Queue<string>(_state.Queue.Where(id => id != philosopherId));
-            _state.Queue.Clear();
-            foreach (var id in queue)
-                _state.Queue.Enqueue(id);
+            if (!_state.Philosophers.ContainsKey(philosopherId))
+                return;
 
-            // если философ был текущим едящим, освобождаем стол
-            if (_state.SomeoneEating && _state.Queue.Count == 0)
-                _state.SomeoneEating = false;
+            var philosopher = _state.Philosophers[philosopherId];
+
+            // если философ ест — освободим вилки
+            if (philosopher.Status == PhilosopherState.Eating)
+            {
+                var leftFork = _state.Forks[philosopher.LeftForkId];
+                var rightFork = _state.Forks[philosopher.RightForkId];
+
+                leftFork.IsAvailable = true;
+                rightFork.IsAvailable = true;
+                leftFork.UsedByPhilosopherId = null;
+                rightFork.UsedByPhilosopherId = null;
+            }
+
+            // удаляем философа из очереди голодных
+            var queue = new Queue<string>(_state.HungryQueue.Where(id => id != philosopherId));
+            _state.HungryQueue.Clear();
+            foreach (var id in queue)
+                _state.HungryQueue.Enqueue(id);
+
+            // удаляем философа из словаря (он больше не участвует)
+            _state.Philosophers.Remove(philosopherId);
 
             _logger.LogInformation(
-                "CoordinatorService: философ {Id} завершает работу и удален из очереди",
+                "CoordinatorService: философ {Id} завершает работу и удален",
                 philosopherId);
 
-            if (_state.Queue.Any())
+            // пробуем разбудить очередь
+            int count = _state.HungryQueue.Count;
+            for (int i = 0; i < count; i++)
             {
-                next = _state.Queue.Dequeue();
-                _state.SomeoneEating = true;
+                var nextId = _state.HungryQueue.Dequeue();
+                if (!_state.Philosophers.ContainsKey(nextId))
+                    continue; // философ ушёл
+
+                var next = _state.Philosophers[nextId];
+                var lf = _state.Forks[next.LeftForkId];
+                var rf = _state.Forks[next.RightForkId];
+
+                if (lf.IsAvailable && rf.IsAvailable)
+                {
+                    lf.IsAvailable = false;
+                    rf.IsAvailable = false;
+                    lf.UsedByPhilosopherId = nextId;
+                    rf.UsedByPhilosopherId = nextId;
+
+                    next.Status = PhilosopherState.Eating;
+                    newlyAllowed.Add(nextId);
+                }
+                else
+                {
+                    _state.HungryQueue.Enqueue(nextId);
+                }
             }
         }
 
-        if (next != null)
+        foreach (var id in newlyAllowed)
         {
             await _publishEndpoint.Publish(new PhilosopherAllowedToEat
             {
-                PhilosopherId = next
+                PhilosopherId = id
             });
         }
 
+        // если все философы ушли — завершаем приложение
         if (_finishedPhilosophers == _config.PhilosophersCount)
         {
+            _logger.LogInformation(
+                "Coordinator: все философы ({FinishedCount}) завершили работу. Останавливаю приложение...",
+                _finishedPhilosophers);
             _appLifetime.StopApplication();
-
         }
     }
 

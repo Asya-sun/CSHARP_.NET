@@ -76,6 +76,8 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<PhilosopherAllowedToEatConsumer>(context);
         });
+
+        cfg.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(5)));
     });
 });
 

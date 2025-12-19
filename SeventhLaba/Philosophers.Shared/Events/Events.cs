@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace Philosophers.Shared.Events
 {
+    public record PhilosopherRegistered
+    {
+        public string PhilosopherId { get; init; } = "";
+        public string Name { get; init; } = "";
+        public int LeftForkId { get; init; }
+        public int RightForkId { get; init; }
+    }
     public record PhilosopherWantsToEat
     {
         public string PhilosopherId { get; init; } = "";
@@ -15,6 +22,13 @@ namespace Philosophers.Shared.Events
     {
         public string PhilosopherId { get; init; } = "";
     }
+
+    //public record PhilosopherAllowedToTakeFork
+    //{
+    //    public string PhilosopherId;
+    //    public int ForkId;
+    //}
+
 
     public record PhilosopherFinishedEating
     {

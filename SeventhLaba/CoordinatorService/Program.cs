@@ -25,6 +25,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<PhilosopherWantsToEatConsumer>();
     x.AddConsumer<PhilosopherFinishedEatingConsumer>();
     x.AddConsumer<PhilosopherExitingConsumer>();
+    x.AddConsumer<PhilosopherRegisteredConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -34,8 +35,7 @@ builder.Services.AddMassTransit(x =>
             h.Password("guest");
 
         });
-
-        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        cfg.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(5)));
         cfg.ConfigureEndpoints(context);
     });
 });
