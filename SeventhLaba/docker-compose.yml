@@ -28,6 +28,15 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+      SIMULATION_MINUTES: ${RABBITMQ_LIFETIME_MINUTES:-6}
+    command: >
+      sh -c "
+        echo 'Starting RabbitMQ';
+        rabbitmq-server &
+        sleep $((SIMULATION_MINUTES * 60));
+        echo 'Simulation time elapsed, stopping RabbitMQ';
+        rabbitmqctl stop
+      "
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -42,6 +51,7 @@ services:
       dockerfile: CoordinatorService/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - PHILOSOPHER_COUNT=5
       - RabbitMQ__Host=rabbitmq
     depends_on:
       table-service:
@@ -68,7 +78,7 @@ services:
       - LEFT_FORK_ID=1
       - RIGHT_FORK_ID=5
       - TABLE_SERVICE_URL=http://table-service:8080
-      - SIMULATION_DURATION_MINUTES=5
+      - SIMULATION_DURATION_MINUTES=${SIMULATION_DURATION_MINUTES}
       - PHILOSOPHER_STRATEGY=polite
       - RabbitMQ__Host=rabbitmq
 
@@ -93,7 +103,7 @@ services:
       - LEFT_FORK_ID=2
       - RIGHT_FORK_ID=1
       - TABLE_SERVICE_URL=http://table-service:8080
-      - SIMULATION_DURATION_MINUTES=5
+      - SIMULATION_DURATION_MINUTES=${SIMULATION_DURATION_MINUTES}
       - PHILOSOPHER_STRATEGY=polite
       - RabbitMQ__Host=rabbitmq
     depends_on:
@@ -117,7 +127,7 @@ services:
       - LEFT_FORK_ID=3
       - RIGHT_FORK_ID=2
       - TABLE_SERVICE_URL=http://table-service:8080
-      - SIMULATION_DURATION_MINUTES=5
+      - SIMULATION_DURATION_MINUTES=${SIMULATION_DURATION_MINUTES}
       - PHILOSOPHER_STRATEGY=polite
       - RabbitMQ__Host=rabbitmq
     depends_on:
@@ -141,7 +151,7 @@ services:
       - LEFT_FORK_ID=4
       - RIGHT_FORK_ID=3
       - TABLE_SERVICE_URL=http://table-service:8080
-      - SIMULATION_DURATION_MINUTES=5
+      - SIMULATION_DURATION_MINUTES=${SIMULATION_DURATION_MINUTES}
       - PHILOSOPHER_STRATEGY=polite
       - RabbitMQ__Host=rabbitmq
     depends_on:
@@ -165,7 +175,7 @@ services:
       - LEFT_FORK_ID=5
       - RIGHT_FORK_ID=4
       - TABLE_SERVICE_URL=http://table-service:8080
-      - SIMULATION_DURATION_MINUTES=5
+      - SIMULATION_DURATION_MINUTES=${SIMULATION_DURATION_MINUTES}
       - PHILOSOPHER_STRATEGY=polite
       - RabbitMQ__Host=rabbitmq
     depends_on:

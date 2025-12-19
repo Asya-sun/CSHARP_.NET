@@ -55,7 +55,6 @@ builder.Services.AddHttpClient<TableClient>(client =>
 
 
 // Регистрируем сервисы
-//builder.Services.AddHostedService<PhilosopherHostedService>();
 builder.Services.AddSingleton<PhilosopherHostedService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PhilosopherHostedService>());
 

@@ -2,7 +2,6 @@
 using TableService.Interfaces;
 using TableService.Services;
 using TableService.Models;
-using TableService.Models.TableService.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

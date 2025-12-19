@@ -20,4 +20,12 @@ namespace Philosophers.Shared.Events
     {
         public string PhilosopherId { get; init; } = "";
     }
+
+    /* in case philosopher send request to end and then is going to shut down
+     * needed to say coordinator that fork is no more needed
+     */
+    public record PhilosopherExiting
+    {
+        public string PhilosopherId { get; init; } = "";
+    }
 }

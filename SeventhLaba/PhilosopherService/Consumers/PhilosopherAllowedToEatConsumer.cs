@@ -24,7 +24,7 @@ namespace PhilosopherService.Consumers
         {
             if (context.Message.PhilosopherId == _philosopherService.GetPhilosopherId())
             {
-                _logger.LogInformation("Философ {Name} получил разрешение есть", _philosopherService.GetPhilosopherName());
+                _logger.LogDebug("Философ {Name} получил разрешение есть", _philosopherService.GetPhilosopherName());
                 _philosopherService.SetAllowedToEat(); // Метод, который завершает ожидание
             }
             return Task.CompletedTask;

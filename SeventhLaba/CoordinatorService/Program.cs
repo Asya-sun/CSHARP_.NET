@@ -1,11 +1,19 @@
-﻿using CoordinatorService.Interfaces;
-using CoordinatorService.Services;
+﻿using CoordinatorService.Consumers;
+using CoordinatorService.Interfaces;
 using CoordinatorService.Models;
-using CoordinatorService.Consumers;
+using CoordinatorService.Services;
 using MassTransit;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var config = new CoordinatorConfig
+{
+    PhilosophersCount = int.Parse(Environment.GetEnvironmentVariable("PHILOSOPHER_COUNT") ?? "5"),
+};
+
+// Регистрируем конфигурацию
+builder.Services.AddSingleton(Options.Create(config));
 
 // CoordinatorState будет создаваться 1 раз 
 // scoped живет в рамках 1 сообщения (вроде)
@@ -16,6 +24,7 @@ builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<PhilosopherWantsToEatConsumer>();
     x.AddConsumer<PhilosopherFinishedEatingConsumer>();
+    x.AddConsumer<PhilosopherExitingConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -23,8 +32,10 @@ builder.Services.AddMassTransit(x =>
         {
             h.Username("guest");
             h.Password("guest");
+
         });
 
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
         cfg.ConfigureEndpoints(context);
     });
 });

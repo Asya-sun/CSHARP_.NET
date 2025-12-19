@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 using TableService.Interfaces;
 using TableService.Models;
 using TableService.Models.Enums;
-using TableService.Models.TableService.Models;
+using TableService.Models;
 
 namespace TableService.Services
 {
