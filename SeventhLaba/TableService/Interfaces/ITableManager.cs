@@ -1,4 +1,5 @@
-﻿using TableService.Models;
+﻿using Philosophers.Shared.DTO;
+using TableService.Models;
 using TableService.Models.Enums;
 
 namespace TableService.Interfaces
@@ -7,7 +8,7 @@ namespace TableService.Interfaces
     {
         // Новый метод для регистрации
         bool RegisterPhilosopher(string philosopherId, string name, int leftForkId, int rightForkId);
-        void UnregisterPhilosopher(string philosopherId);
+        void UnregisterPhilosopher(UnregisterPhilosopherRequest request);
 
         Task<bool> WaitForForkAsync(int forkId, string philosopherId, CancellationToken cancellationToken);
         void ReleaseFork(int forkId, string philosopherId);

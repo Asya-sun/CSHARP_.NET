@@ -57,6 +57,7 @@ builder.Services.AddHttpClient<TableClient>(client =>
 // Регистрируем сервисы
 builder.Services.AddSingleton<PhilosopherHostedService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PhilosopherHostedService>());
+builder.Services.AddSingleton<IPhilosopherMetricsCollector, PhilosopherMetricsCollector>();
 
 // Регистрируем интерфейс
 builder.Services.AddSingleton<IPhilosopherService>(sp =>

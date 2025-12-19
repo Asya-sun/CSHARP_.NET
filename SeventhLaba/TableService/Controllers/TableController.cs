@@ -11,16 +11,13 @@ namespace TableService.Controllers
     public class TableController : ControllerBase
     {
         private readonly ITableManager _tableManager;
-        private readonly IMetricsCollector _metricsCollector;
         private readonly ILogger<TableController> _logger;
 
         public TableController(
             ITableManager tableManager,
-            IMetricsCollector metricsCollector,
             ILogger<TableController> logger)
         {
             _tableManager = tableManager;
-            _metricsCollector = metricsCollector;
             _logger = logger;
         }
 
@@ -54,7 +51,7 @@ namespace TableService.Controllers
             _logger.LogInformation("Философ удалаяется: {id}", request.PhilosopherId);
 
             // Регистрируем в TableManagerService
-            _tableManager.UnregisterPhilosopher(request.PhilosopherId);
+            _tableManager.UnregisterPhilosopher(request);
             return Ok();
         }
 

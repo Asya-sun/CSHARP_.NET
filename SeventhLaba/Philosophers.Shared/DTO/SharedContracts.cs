@@ -14,8 +14,22 @@ namespace Philosophers.Shared.DTO
         int RightForkId         
     );
 
+    //public record UnregisterPhilosopherRequest(
+    //    string PhilosopherId
+    //);
+
     public record UnregisterPhilosopherRequest(
-        string PhilosopherId
+        string PhilosopherId,
+        int EatCount,
+        TimeSpan AverageHungryTime,
+        TimeSpan AverageEatingTime,
+        TimeSpan AverageThinkingTime,
+        TimeSpan TotalHungryTime,
+        TimeSpan TotalEatingTime,
+        TimeSpan TotalThinkingTime,
+        TimeSpan MaximumHungryTime,
+        TimeSpan MaximumEatingTime,
+        TimeSpan MaximumThinkingTime
     );
 
     // Для запроса на взятие вилки

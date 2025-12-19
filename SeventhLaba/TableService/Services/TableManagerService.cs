@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Philosophers.Shared.DTO;
 using System.Collections.Concurrent;
 using TableService.Interfaces;
 using TableService.Models;
 using TableService.Models.Enums;
-using TableService.Models;
 
 namespace TableService.Services
 {
@@ -22,16 +22,18 @@ namespace TableService.Services
         private readonly Dictionary<string, (int LeftForkId, int RightForkId)> _philosopherForks; 
         private readonly object _lockObject = new();
         private readonly ILogger<TableManagerService> _logger;
-        private readonly IMetricsCollector _metricsCollector;
+        //private readonly IMetricsCollector _metricsCollector;
+        private readonly ITableMetricsCollector _tableMetricsCollector;
         private readonly IHostApplicationLifetime _appLifetime;
         private int _forkNumber = 0;
 
         public TableManagerService(
-            IOptions<TableConfig> config, ILogger<TableManagerService> logger, IMetricsCollector metricsCollector, IHostApplicationLifetime appLifetime)
+            IOptions<TableConfig> config, ILogger<TableManagerService> logger, ITableMetricsCollector tableMetricsCollector, IHostApplicationLifetime appLifetime)
         {
             _config = config.Value;
             _logger = logger;
-            _metricsCollector = metricsCollector;
+            //_metricsCollector = metricsCollector;
+            _tableMetricsCollector = tableMetricsCollector;
             _appLifetime = appLifetime;
             if (_config.PhilosophersCount <= 0)
             {
@@ -89,12 +91,14 @@ namespace TableService.Services
             }
         }
 
-        public void UnregisterPhilosopher(string philosopherId)
+        public void UnregisterPhilosopher(UnregisterPhilosopherRequest request)
         {
-            if (_philosophers.TryGetValue(philosopherId, out var philosopher))
+            if (_philosophers.TryGetValue(request.PhilosopherId, out var philosopher))
             {
                 philosopher._isFinished = true;
                 Interlocked.Increment(ref _finishedCount);
+
+                _tableMetricsCollector.RecordPhilosopherMetrics(request);
 
                 _logger.LogInformation(
                     "Философ {Name} вышел ({Finished}/{Total})",
@@ -107,7 +111,7 @@ namespace TableService.Services
                 {
                     _logger.LogInformation("Все философы завершили работу. Печать метрик и остановка сервиса.");
 
-                    _metricsCollector.PrintMetrics();
+                    _tableMetricsCollector.PrintMetrics();
 
                     _appLifetime.StopApplication();
                 }
@@ -133,7 +137,7 @@ namespace TableService.Services
                 {
                     _forkOwners[forkId] = philosopherId;
                 }
-                _metricsCollector.RecordForkAcquired(forkId, philosopherId);
+                _tableMetricsCollector.RecordForkAcquired(forkId, philosopherId);
                 _logger.LogDebug("Философ {PhilosopherId} взял вилку {ForkId}", philosopherId, forkId);
             }
             else
@@ -158,7 +162,7 @@ namespace TableService.Services
                 {
                     _forkOwners.Remove(forkId);
                     semaphore.Release();
-                    _metricsCollector.RecordForkReleased(forkId);
+                    _tableMetricsCollector.RecordForkReleased(forkId);
                     _logger.LogDebug("Философ {PhilosopherId} положил вилку {ForkId}", philosopherId, forkId);
                 }
                 else
@@ -238,15 +242,6 @@ namespace TableService.Services
                 {
                     philosopher.State = state;
                     philosopher.Action = action;
-
-                    // Если философ начал есть - увеличиваем счетчик
-                    if (state == PhilosopherState.Eating)
-                    {
-                        philosopher.EatCount++;
-                        _metricsCollector.RecordEating(philosopherId);
-                        _logger.LogDebug("Философ {Name} поел. Всего: {Count}",
-                            philosopher.Name, philosopher.EatCount);
-                    }
                 }
                 else
                 {

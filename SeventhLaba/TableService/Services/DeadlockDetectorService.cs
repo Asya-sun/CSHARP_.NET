@@ -7,18 +7,17 @@ namespace TableService.Services
     {
         protected readonly ITableManager _tableManager;
         private readonly ILogger<DeadlockDetector> _logger;
-        private readonly IMetricsCollector _metricsCollector;
+        private readonly ITableMetricsCollector _tableMetricsCollector;
         private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(5);
-        private int _deadlockCount = 0;
 
         public DeadlockDetector(
             ITableManager tableManager,
             ILogger<DeadlockDetector> logger,
-            IMetricsCollector metricsCollector)
+            ITableMetricsCollector tableMetricsCollector)
         {
             _tableManager = tableManager;
             _logger = logger;
-            _metricsCollector = metricsCollector;
+            _tableMetricsCollector = tableMetricsCollector;
 
         }
 
@@ -34,9 +33,8 @@ namespace TableService.Services
 
                     if (CheckForDeadlock())
                     {
-                        _deadlockCount++;
                         _logger.LogWarning("ДЕДЛОК! Все философы голодны и все вилки заняты");
-                        _metricsCollector.RecordDeadlock();
+                        _tableMetricsCollector.RecordDeadlock();
 
                         // заставляем философа отпустить вилки
                     }

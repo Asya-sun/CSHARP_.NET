@@ -16,6 +16,7 @@ namespace PhilosopherService.Services
         private readonly PhilosopherConfig _config;
         private readonly TableClient _tableClient;
         private readonly ILogger<PhilosopherHostedService> _logger;
+        private readonly IPhilosopherMetricsCollector _metricsCollector;
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly IBus _bus;
 
@@ -47,6 +48,7 @@ namespace PhilosopherService.Services
             IPhilosopherStrategy strategy,
             ILogger<PhilosopherHostedService> logger,
             IHostApplicationLifetime appLifetime,
+            IPhilosopherMetricsCollector metricsCollector,
             IBus bus)
         {
             _bus = bus;
@@ -56,6 +58,7 @@ namespace PhilosopherService.Services
             _logger = logger;
             _strategy = strategy;
             _appLifetime = appLifetime;
+            _metricsCollector = metricsCollector;
 
             _thinkingTimer.Start();
         }
@@ -158,7 +161,17 @@ namespace PhilosopherService.Services
         private async Task UnregisterWithTableAsync(CancellationToken ct)
         {
             var request = new UnregisterPhilosopherRequest(
-                _config.PhilosopherId);
+                PhilosopherId: _config.PhilosopherId,
+                EatCount : _metricsCollector.GetEatCount(),
+                AverageHungryTime: _metricsCollector.GetAverageHungryTime(),
+                AverageEatingTime: _metricsCollector.GetAverageEatingTime(),
+                AverageThinkingTime: _metricsCollector.GetAverageThinkingTime(),
+                TotalHungryTime: _metricsCollector.GetTotalHungryTime(),
+                TotalEatingTime: _metricsCollector.GetTotalEatingTime(),
+                TotalThinkingTime: _metricsCollector.GetTotalThinkingTime(),
+                MaximumHungryTime: _metricsCollector.GetMaximumHungryTime(),
+                MaximumEatingTime: _metricsCollector.GetMaximumEatingTime(),
+                MaximumThinkingTime : _metricsCollector.GetMaximumThinkingTime());
 
             await _tableClient.UnregisterAsync(request, ct);
         }
@@ -273,10 +286,9 @@ namespace PhilosopherService.Services
                     {
                         _logger.LogInformation("Философ {Name} не получил разрешения есть — отмена\nУ философа {Name} сработал cancellationToken, но он не успел получить вилку.\n Шлем координатору, что вилка нам больше не понадобится", _config.Name, _config.Name);
 
-                        //// наверное тут можно ничего  и не обновлять...
-                        //_state = PhilosopherState.Thinking;
-                        //_action = "None";
-                        //await UpdateStateInTableAsync();
+                        _hungryTimer.Stop();
+                        var hungryDuration = _hungryTimer.Elapsed;
+                        _metricsCollector.RecordWaitingTime(hungryDuration);
 
                         return;
                     }
@@ -286,6 +298,10 @@ namespace PhilosopherService.Services
                         _logger.LogInformation(
                             "Философ {Name} получил разрешение на еду от координатора",
                             _config.Name);
+
+                        _hungryTimer.Stop();
+                        var hungryDuration = _hungryTimer.Elapsed;
+                        _metricsCollector.RecordWaitingTime(hungryDuration);
 
                         await _strategy.AcquireForksAsync(
                                     _config,
@@ -350,6 +366,10 @@ namespace PhilosopherService.Services
                 await Task.Delay(100, cancellationToken);
                 _stepsLeft -= 100;
             }
+
+            _thinkingTimer.Stop();
+            var thinkingDuration = _thinkingTimer.Elapsed;
+            _metricsCollector.RecordThinkingTime(thinkingDuration);
         }
 
 
@@ -363,6 +383,11 @@ namespace PhilosopherService.Services
                 await Task.Delay(100, cancellationToken);
                 _stepsLeft -= 100;
             }
+
+            _eatingTimer.Stop();
+            var eatingDuration = _eatingTimer.Elapsed;
+            _metricsCollector.RecordEating();
+            _metricsCollector.RecordEatingTime(eatingDuration);
         }
 
         private async Task UpdateStateInTableAsync()
